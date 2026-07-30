@@ -28,7 +28,7 @@ function ProjectCard({ project }: { project: Project }) {
           <p>{project.blurb}</p>
           <div className="project-meta">
             <span>{project.stack}</span>
-            <span>{project.owner}</span>
+            <span>ER Labs</span>
             <span className="project-hint">
               {open ? 'Ocultar galería' : 'Ver galería'}
             </span>
@@ -162,7 +162,7 @@ function App() {
         <section className="team" id="equipo">
           <div className="section-head">
             <h2>Equipo</h2>
-            <p>Dos desarrolladores, un mismo laboratorio.</p>
+            <p>Dos desarrolladores detrás de ER Labs.</p>
           </div>
           <div className="team-grid">
             {team.map((member) => (

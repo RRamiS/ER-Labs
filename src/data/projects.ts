@@ -13,7 +13,6 @@ export type Project = {
   stack: string
   repoUrl: string
   liveUrl?: string
-  owner: 'Ramiro' | 'Emiliano' | 'ER Labs'
   accent: string
   gallery: GalleryShot[]
 }
@@ -27,13 +26,13 @@ export const projects: Project[] = [
     status: 'mvp',
     stack: 'TypeScript',
     repoUrl: 'https://github.com/RRamiS/vehio',
-    owner: 'Ramiro',
+    liveUrl: 'https://vehio.me/',
     accent: '#1F6BFF',
     gallery: [
-      { caption: 'Inicio / catálogo' },
-      { caption: 'Detalle de vehículo' },
-      { caption: 'Publicación' },
-      { caption: 'Búsqueda y filtros' },
+      { src: '/projects/vehio/01-inicio.png', caption: 'Inicio' },
+      { src: '/projects/vehio/02-beneficios.png', caption: 'Beneficios' },
+      { src: '/projects/vehio/03-catalogo.png', caption: 'Catálogo' },
+      { src: '/projects/vehio/04-detalle.png', caption: 'Detalle' },
     ],
   },
   {
@@ -45,13 +44,11 @@ export const projects: Project[] = [
     stack: 'HTML',
     repoUrl: 'https://github.com/RRamiS/Reflejos_Del_Lago_Vercel',
     liveUrl: 'https://reflejos-del-lago-vercel.vercel.app',
-    owner: 'Ramiro',
     accent: '#0E8A7A',
     gallery: [
       { src: '/projects/reflejos/01-portada.png', caption: 'Portada' },
       { src: '/projects/reflejos/02-galeria.png', caption: 'Galería' },
       { src: '/projects/reflejos/03-nosotros.png', caption: 'Nosotros / contacto' },
-      { caption: 'Alojamiento' },
     ],
   },
   {
@@ -62,14 +59,12 @@ export const projects: Project[] = [
     status: 'desarrollo',
     stack: 'Expo · Tauri · TypeScript',
     repoUrl: 'https://github.com/RRamiS/Containers',
-    owner: 'ER Labs',
     accent: '#E8A317',
     gallery: [
-      { caption: 'Dashboard' },
-      { caption: 'Inventario' },
-      { caption: 'Alquileres' },
-      { caption: 'Detalle de activo' },
-      { caption: 'Versión desktop' },
+      { src: '/projects/containers/01-alquileres.png', caption: 'Alquileres' },
+      { src: '/projects/containers/02-mapa.png', caption: 'Mapa' },
+      { src: '/projects/containers/03-contenedores.png', caption: 'Contenedores' },
+      { src: '/projects/containers/04-choferes.png', caption: 'Choferes' },
     ],
   },
   {
@@ -80,7 +75,6 @@ export const projects: Project[] = [
     status: 'desarrollo',
     stack: 'TypeScript · Mobile-first',
     repoUrl: 'https://github.com/RRamiS/FincOS',
-    owner: 'ER Labs',
     accent: '#3D8B4F',
     gallery: [
       { caption: 'Home mobile' },
@@ -97,13 +91,12 @@ export const projects: Project[] = [
     status: 'desarrollo',
     stack: 'TypeScript',
     repoUrl: 'https://github.com/EmilianoArias021/Lista-de-precios',
-    owner: 'Emiliano',
     accent: '#C44D2B',
     gallery: [
-      { caption: 'Lista principal' },
-      { caption: 'Edición de ítems' },
-      { caption: 'Categorías' },
-      { caption: 'Vista cliente' },
+      { src: '/projects/lista-precios/01-lista.png', caption: 'Catálogo' },
+      { src: '/projects/lista-precios/02-detalle.png', caption: 'Nuevo producto' },
+      { src: '/projects/lista-precios/03-categorias.png', caption: 'Base de datos' },
+      { src: '/projects/lista-precios/04-vista.png', caption: 'Modo claro' },
     ],
   },
   {
@@ -115,13 +108,11 @@ export const projects: Project[] = [
     stack: 'HTML · Vercel',
     repoUrl: 'https://github.com/RRamiS/Muebleria',
     liveUrl: 'https://muebleria-brown.vercel.app',
-    owner: 'Ramiro',
     accent: '#8B5E3C',
     gallery: [
       { src: '/projects/muebleria/01-portada.png', caption: 'Portada' },
       { src: '/projects/muebleria/02-categorias.png', caption: 'Categorías' },
       { src: '/projects/muebleria/03-productos.png', caption: 'Catálogo' },
-      { caption: 'Ficha de producto' },
     ],
   },
 ]
@@ -130,13 +121,13 @@ export const team = [
   {
     name: 'Ramiro',
     handle: 'RRamiS',
-    role: 'Desarrollo de software',
+    role: 'ER Labs',
     url: 'https://github.com/RRamiS',
   },
   {
     name: 'Emiliano Arias',
     handle: 'EmilianoArias021',
-    role: 'Desarrollo de software',
+    role: 'ER Labs',
     url: 'https://github.com/EmilianoArias021',
   },
 ]
