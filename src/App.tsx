@@ -4,11 +4,25 @@ import {
   useState,
   type CSSProperties,
   type MouseEvent,
+  type TransitionEvent,
 } from 'react'
-import { projects, team, type Project } from './data/projects'
+import { createPortal } from 'react-dom'
+import { projects, team, type GalleryShot, type Project } from './data/projects'
 import './App.css'
 
 type Theme = 'light' | 'dark'
+
+type PeekShot = {
+  src: string
+  caption: string
+  accent: string
+  origin: {
+    top: number
+    left: number
+    width: number
+    height: number
+  }
+}
 
 function getInitialTheme(): Theme {
   const saved = localStorage.getItem('er-labs-theme')
@@ -32,7 +46,7 @@ function useReveal<T extends HTMLElement = HTMLElement>() {
           observer.unobserve(node)
         }
       },
-      { threshold: 0.14, rootMargin: '0px 0px -8% 0px' },
+      { threshold: 0.08, rootMargin: '0px 0px -4% 0px' },
     )
 
     observer.observe(node)
@@ -40,6 +54,193 @@ function useReveal<T extends HTMLElement = HTMLElement>() {
   }, [])
 
   return ref
+}
+
+function getPeekGeometry(origin: PeekShot['origin']) {
+  const maxW = Math.min(880, window.innerWidth * 0.86)
+  const maxH = Math.min(window.innerHeight * 0.72, 640)
+  const ratio = origin.width / Math.max(origin.height, 1)
+  let width = maxW
+  let height = width / ratio
+  if (height > maxH) {
+    height = maxH
+    width = height * ratio
+  }
+  return {
+    width,
+    height,
+    left: (window.innerWidth - width) / 2,
+    top: (window.innerHeight - height) / 2,
+  }
+}
+
+function ShotPeek({
+  shot,
+  onClose,
+}: {
+  shot: PeekShot
+  onClose: () => void
+}) {
+  const [phase, setPhase] = useState<'enter' | 'open' | 'exit'>('enter')
+  const final = useRef(getPeekGeometry(shot.origin))
+  const phaseRef = useRef(phase)
+  phaseRef.current = phase
+
+  useEffect(() => {
+    final.current = getPeekGeometry(shot.origin)
+    const frame = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => setPhase('open'))
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [shot])
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setPhase('exit')
+    }
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prevOverflow
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [])
+
+  const requestClose = () => setPhase('exit')
+
+  const onFrameTransitionEnd = (event: TransitionEvent<HTMLElement>) => {
+    if (event.propertyName !== 'transform') return
+    if (phaseRef.current === 'exit') onClose()
+  }
+
+  const expanded = phase === 'open'
+  const sx = shot.origin.width / final.current.width
+  const sy = shot.origin.height / final.current.height
+  const dx = shot.origin.left - final.current.left
+  const dy = shot.origin.top - final.current.top
+
+  return createPortal(
+    <div
+      className={`shot-peek${expanded ? ' is-open' : ''}${phase === 'exit' ? ' is-exit' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label={shot.caption}
+      onClick={requestClose}
+    >
+      <figure
+        className={`shot-peek-frame${expanded ? ' is-open' : ''}`}
+        style={
+          {
+            '--accent': shot.accent,
+            top: final.current.top,
+            left: final.current.left,
+            width: final.current.width,
+            height: final.current.height,
+            transform: expanded
+              ? 'translate3d(0, 0, 0) scale(1, 1)'
+              : `translate3d(${dx}px, ${dy}px, 0) scale(${sx}, ${sy})`,
+          } as CSSProperties
+        }
+        onClick={(event) => event.stopPropagation()}
+        onTransitionEnd={onFrameTransitionEnd}
+      >
+        <img src={shot.src} alt={shot.caption} />
+        <figcaption>{shot.caption}</figcaption>
+        <button type="button" className="shot-peek-close" onClick={requestClose}>
+          Cerrar
+        </button>
+      </figure>
+    </div>,
+    document.body,
+  )
+}
+
+function GalleryFigure({
+  shot,
+  accent,
+  onPeek,
+}: {
+  shot: GalleryShot
+  accent: string
+  onPeek: (shot: PeekShot) => void
+}) {
+  const buttonRef = useRef<HTMLButtonElement | null>(null)
+  const dwellRef = useRef<number | null>(null)
+  const [warming, setWarming] = useState(false)
+
+  const clearDwell = () => {
+    if (dwellRef.current !== null) {
+      window.clearTimeout(dwellRef.current)
+      dwellRef.current = null
+    }
+    setWarming(false)
+  }
+
+  useEffect(
+    () => () => {
+      if (dwellRef.current !== null) window.clearTimeout(dwellRef.current)
+    },
+    [],
+  )
+
+  const openPeek = () => {
+    if (!shot.src || !buttonRef.current) return
+    const rect = buttonRef.current.getBoundingClientRect()
+    clearDwell()
+    onPeek({
+      src: shot.src,
+      caption: shot.caption,
+      accent,
+      origin: {
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      },
+    })
+  }
+
+  const onEnter = () => {
+    if (!shot.src) return
+    setWarming(true)
+    dwellRef.current = window.setTimeout(() => {
+      openPeek()
+    }, 900)
+  }
+
+  if (!shot.src) {
+    return (
+      <figure
+        className="gallery-shot is-placeholder"
+        style={{
+          background: `linear-gradient(145deg, ${accent}55, ${accent}18)`,
+        }}
+      >
+        <span className="gallery-placeholder-label">Captura pendiente</span>
+        <figcaption>{shot.caption}</figcaption>
+      </figure>
+    )
+  }
+
+  return (
+    <button
+      ref={buttonRef}
+      type="button"
+      className={`gallery-shot gallery-shot-btn${warming ? ' is-warming' : ''}`}
+      onClick={openPeek}
+      onMouseEnter={onEnter}
+      onMouseLeave={clearDwell}
+      aria-label={`Ampliar ${shot.caption}`}
+    >
+      <img src={shot.src} alt="" decoding="async" />
+      <span className="gallery-shot-hint" aria-hidden="true">
+        Ampliar
+      </span>
+      <span className="gallery-shot-caption">{shot.caption}</span>
+    </button>
+  )
 }
 
 function ProjectCard({
@@ -50,8 +251,8 @@ function ProjectCard({
   index: number
 }) {
   const [open, setOpen] = useState(false)
+  const [peek, setPeek] = useState<PeekShot | null>(null)
   const cover = project.gallery.find((shot) => shot.src)?.src
-  const cardRef = useReveal<HTMLLIElement>()
 
   const onMove = (event: MouseEvent<HTMLLIElement>) => {
     const rect = event.currentTarget.getBoundingClientRect()
@@ -63,9 +264,8 @@ function ProjectCard({
 
   return (
     <li
-      ref={cardRef}
-      className={`project-row reveal${open ? ' is-open' : ''}`}
-      style={{ '--delay': `${index * 70}ms`, '--accent': project.accent } as CSSProperties}
+      className={`project-row${open ? ' is-open' : ''}`}
+      style={{ '--accent': project.accent } as CSSProperties}
       onMouseMove={onMove}
     >
       <button
@@ -102,45 +302,31 @@ function ProjectCard({
         </div>
       </button>
 
-      {open ? (
-        <div className="project-detail">
-          <div className="gallery" tabIndex={0} aria-label={`Galería de ${project.name}`}>
-            {project.gallery.map((shot, shotIndex) => (
-              <figure
-                key={`${project.id}-${shotIndex}`}
-                className={`gallery-shot${shot.src ? '' : ' is-placeholder'}`}
-                style={
-                  shot.src
-                    ? undefined
-                    : {
-                        background: `linear-gradient(145deg, ${project.accent}44, ${project.accent}12)`,
-                      }
-                }
-              >
-                {shot.src ? (
-                  <img src={shot.src} alt={shot.caption} loading="lazy" />
-                ) : (
-                  <span className="gallery-placeholder-label">
-                    Captura pendiente
-                  </span>
-                )}
-                <figcaption>{shot.caption}</figcaption>
-              </figure>
-            ))}
-          </div>
-
-          <div className="project-actions">
-            <a className="action-link" href={project.repoUrl} target="_blank" rel="noreferrer">
-              Repositorio
-            </a>
-            {project.liveUrl ? (
-              <a className="action-link" href={project.liveUrl} target="_blank" rel="noreferrer">
-                Ver en vivo
-              </a>
-            ) : null}
-          </div>
+      <div className="project-detail" hidden={!open}>
+        <div className="gallery" tabIndex={0} aria-label={`Galería de ${project.name}`}>
+          {project.gallery.map((shot, shotIndex) => (
+            <GalleryFigure
+              key={`${project.id}-${shotIndex}`}
+              shot={shot}
+              accent={project.accent}
+              onPeek={setPeek}
+            />
+          ))}
         </div>
-      ) : null}
+
+        <div className="project-actions">
+          <a className="action-link" href={project.repoUrl} target="_blank" rel="noreferrer">
+            Repositorio
+          </a>
+          {project.liveUrl ? (
+            <a className="action-link" href={project.liveUrl} target="_blank" rel="noreferrer">
+              Ver en vivo
+            </a>
+          ) : null}
+        </div>
+      </div>
+
+      {peek ? <ShotPeek shot={peek} onClose={() => setPeek(null)} /> : null}
     </li>
   )
 }
