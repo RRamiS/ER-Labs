@@ -1,5 +1,83 @@
-import { projects, team } from './data/projects'
+import { useState } from 'react'
+import { projects, team, type Project } from './data/projects'
 import './App.css'
+
+function ProjectCard({ project }: { project: Project }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <li className={`project-row${open ? ' is-open' : ''}`}>
+      <div
+        className="project-accent"
+        style={{ background: project.accent }}
+        aria-hidden="true"
+      />
+      <div className="project-body">
+        <button
+          type="button"
+          className="project-toggle"
+          aria-expanded={open}
+          onClick={() => setOpen((value) => !value)}
+        >
+          <div className="project-top">
+            <h3>{project.name}</h3>
+            <span className={`status status-${project.status}`}>
+              {project.status === 'mvp' ? 'MVP' : 'En desarrollo'}
+            </span>
+          </div>
+          <p>{project.blurb}</p>
+          <div className="project-meta">
+            <span>{project.stack}</span>
+            <span>{project.owner}</span>
+            <span className="project-hint">
+              {open ? 'Ocultar galería' : 'Ver galería'}
+            </span>
+          </div>
+        </button>
+
+        {open ? (
+          <div className="project-detail">
+            <div className="gallery" tabIndex={0} aria-label={`Galería de ${project.name}`}>
+              {project.gallery.map((shot, index) => (
+                <figure
+                  key={`${project.id}-${index}`}
+                  className={`gallery-shot${shot.src ? '' : ' is-placeholder'}`}
+                  style={
+                    shot.src
+                      ? undefined
+                      : {
+                          background: `linear-gradient(145deg, ${project.accent}33, ${project.accent}10)`,
+                        }
+                  }
+                >
+                  {shot.src ? (
+                    <img src={shot.src} alt={shot.caption} loading="lazy" />
+                  ) : (
+                    <span className="gallery-placeholder-label">
+                      Captura pendiente
+                    </span>
+                  )}
+                  <figcaption>{shot.caption}</figcaption>
+                </figure>
+              ))}
+            </div>
+
+            <div className="project-actions">
+              <a href={project.repoUrl} target="_blank" rel="noreferrer">
+                Repositorio
+              </a>
+              {project.liveUrl ? (
+                <a href={project.liveUrl} target="_blank" rel="noreferrer">
+                  Ver en vivo
+                </a>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </li>
+  )
+}
 
 function App() {
   return (
@@ -69,53 +147,14 @@ function App() {
           <div className="section-head">
             <h2>Proyectos</h2>
             <p>
-              Productos con MVP funcional. La mayoría sigue en desarrollo
-              activo.
+              Cada uno con descripción, links y una galería scrolleable de
+              capturas. Van a sumar fotos reales de las apps.
             </p>
           </div>
 
           <ul className="project-list">
             {projects.map((project) => (
-              <li key={project.id} className="project-row">
-                <div
-                  className="project-accent"
-                  style={{ background: project.accent }}
-                  aria-hidden="true"
-                />
-                <div className="project-body">
-                  <div className="project-top">
-                    <h3>{project.name}</h3>
-                    <span
-                      className={`status status-${project.status}`}
-                    >
-                      {project.status === 'mvp' ? 'MVP' : 'En desarrollo'}
-                    </span>
-                  </div>
-                  <p>{project.blurb}</p>
-                  <div className="project-meta">
-                    <span>{project.stack}</span>
-                    <span>{project.owner}</span>
-                  </div>
-                  <div className="project-actions">
-                    <a
-                      href={project.repoUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Repositorio
-                    </a>
-                    {project.liveUrl ? (
-                      <a
-                        href={project.liveUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Ver en vivo
-                      </a>
-                    ) : null}
-                  </div>
-                </div>
-              </li>
+              <ProjectCard key={project.id} project={project} />
             ))}
           </ul>
         </section>

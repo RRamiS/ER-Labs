@@ -1,5 +1,10 @@
 export type ProjectStatus = 'mvp' | 'desarrollo'
 
+export type GalleryShot = {
+  src?: string
+  caption: string
+}
+
 export type Project = {
   id: string
   name: string
@@ -10,6 +15,7 @@ export type Project = {
   liveUrl?: string
   owner: 'Ramiro' | 'Emiliano' | 'ER Labs'
   accent: string
+  gallery: GalleryShot[]
 }
 
 export const projects: Project[] = [
@@ -23,6 +29,12 @@ export const projects: Project[] = [
     repoUrl: 'https://github.com/RRamiS/vehio',
     owner: 'Ramiro',
     accent: '#1F6BFF',
+    gallery: [
+      { caption: 'Inicio / catálogo' },
+      { caption: 'Detalle de vehículo' },
+      { caption: 'Publicación' },
+      { caption: 'Búsqueda y filtros' },
+    ],
   },
   {
     id: 'reflejos',
@@ -35,6 +47,12 @@ export const projects: Project[] = [
     liveUrl: 'https://reflejos-del-lago-vercel.vercel.app',
     owner: 'Ramiro',
     accent: '#0E8A7A',
+    gallery: [
+      { src: '/projects/reflejos/01-portada.png', caption: 'Portada' },
+      { src: '/projects/reflejos/02-galeria.png', caption: 'Galería' },
+      { src: '/projects/reflejos/03-nosotros.png', caption: 'Nosotros / contacto' },
+      { caption: 'Alojamiento' },
+    ],
   },
   {
     id: 'containers',
@@ -46,6 +64,13 @@ export const projects: Project[] = [
     repoUrl: 'https://github.com/RRamiS/Containers',
     owner: 'ER Labs',
     accent: '#E8A317',
+    gallery: [
+      { caption: 'Dashboard' },
+      { caption: 'Inventario' },
+      { caption: 'Alquileres' },
+      { caption: 'Detalle de activo' },
+      { caption: 'Versión desktop' },
+    ],
   },
   {
     id: 'fincos',
@@ -57,6 +82,12 @@ export const projects: Project[] = [
     repoUrl: 'https://github.com/RRamiS/FincOS',
     owner: 'ER Labs',
     accent: '#3D8B4F',
+    gallery: [
+      { caption: 'Home mobile' },
+      { caption: 'Parcelas' },
+      { caption: 'Tareas' },
+      { caption: 'Reportes' },
+    ],
   },
   {
     id: 'lista-precios',
@@ -68,6 +99,12 @@ export const projects: Project[] = [
     repoUrl: 'https://github.com/EmilianoArias021/Lista-de-precios',
     owner: 'Emiliano',
     accent: '#C44D2B',
+    gallery: [
+      { caption: 'Lista principal' },
+      { caption: 'Edición de ítems' },
+      { caption: 'Categorías' },
+      { caption: 'Vista cliente' },
+    ],
   },
   {
     id: 'muebleria',
@@ -80,6 +117,12 @@ export const projects: Project[] = [
     liveUrl: 'https://muebleria-brown.vercel.app',
     owner: 'Ramiro',
     accent: '#8B5E3C',
+    gallery: [
+      { src: '/projects/muebleria/01-portada.png', caption: 'Portada' },
+      { src: '/projects/muebleria/02-categorias.png', caption: 'Categorías' },
+      { src: '/projects/muebleria/03-productos.png', caption: 'Catálogo' },
+      { caption: 'Ficha de producto' },
+    ],
   },
 ]
 
