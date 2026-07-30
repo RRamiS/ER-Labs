@@ -115,31 +115,58 @@ function App() {
 
           <div className="hero-stage" aria-hidden="true">
             <div className="stage-glow" />
-            <div className="stage-panel stage-panel-a">
-              <span className="panel-label">Vehio</span>
-              <div className="panel-lines">
-                <i />
-                <i />
-                <i />
+            <div className="stage-orbit" />
+
+            <article className="stage-panel stage-panel-a">
+              <header className="panel-chrome">
+                <span className="panel-dots" />
+                <span className="panel-label">Vehio</span>
+              </header>
+              <div className="panel-shot">
+                <img
+                  src="/projects/vehio/03-catalogo.png"
+                  alt=""
+                  loading="eager"
+                />
               </div>
-            </div>
-            <div className="stage-panel stage-panel-b">
-              <span className="panel-label">FincOS</span>
-              <div className="panel-grid">
-                <b />
-                <b />
-                <b />
-                <b />
+            </article>
+
+            <article className="stage-panel stage-panel-b">
+              <header className="panel-chrome">
+                <span className="panel-dots" />
+                <span className="panel-label">FincOS</span>
+              </header>
+              <div className="panel-shot panel-shot-fincos">
+                <div className="fincos-mock">
+                  <span className="fincos-chip">Parcelas</span>
+                  <div className="fincos-rows">
+                    <i />
+                    <i />
+                    <i />
+                  </div>
+                  <div className="fincos-tiles">
+                    <b />
+                    <b />
+                    <b />
+                    <b />
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="stage-panel stage-panel-c">
-              <span className="panel-label">Containers</span>
-              <div className="panel-bars">
-                <s />
-                <s />
-                <s />
+            </article>
+
+            <article className="stage-panel stage-panel-c">
+              <header className="panel-chrome">
+                <span className="panel-dots" />
+                <span className="panel-label">Containers</span>
+              </header>
+              <div className="panel-shot">
+                <img
+                  src="/projects/containers/02-mapa.png"
+                  alt=""
+                  loading="eager"
+                />
               </div>
-            </div>
+            </article>
           </div>
         </section>
 
