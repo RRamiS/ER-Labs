@@ -1,24 +1,38 @@
-import { useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { projects, team, type Project } from './data/projects'
 import './App.css'
 
+type Theme = 'light' | 'dark'
+
+function getInitialTheme(): Theme {
+  const saved = localStorage.getItem('er-labs-theme')
+  if (saved === 'light' || saved === 'dark') return saved
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light'
+}
+
 function ProjectCard({ project }: { project: Project }) {
   const [open, setOpen] = useState(false)
+  const cover = project.gallery.find((shot) => shot.src)?.src
 
   return (
     <li className={`project-row${open ? ' is-open' : ''}`}>
-      <div
-        className="project-accent"
-        style={{ background: project.accent }}
-        aria-hidden="true"
-      />
-      <div className="project-body">
-        <button
-          type="button"
-          className="project-toggle"
-          aria-expanded={open}
-          onClick={() => setOpen((value) => !value)}
-        >
+      <button
+        type="button"
+        className="project-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <div className="project-preview" style={{ '--accent': project.accent } as CSSProperties}>
+          {cover ? (
+            <img src={cover} alt="" loading="lazy" />
+          ) : (
+            <div className="project-preview-empty" />
+          )}
+        </div>
+
+        <div className="project-copy">
           <div className="project-top">
             <h3>{project.name}</h3>
             <span className={`status status-${project.status}`}>
@@ -28,94 +42,129 @@ function ProjectCard({ project }: { project: Project }) {
           <p>{project.blurb}</p>
           <div className="project-meta">
             <span>{project.stack}</span>
-            <span>ER Labs</span>
             <span className="project-hint">
-              {open ? 'Ocultar galería' : 'Ver galería'}
+              {open ? 'Cerrar' : 'Abrir galería'}
+              <span aria-hidden="true"> →</span>
             </span>
           </div>
-        </button>
+        </div>
+      </button>
 
-        {open ? (
-          <div className="project-detail">
-            <div className="gallery" tabIndex={0} aria-label={`Galería de ${project.name}`}>
-              {project.gallery.map((shot, index) => (
-                <figure
-                  key={`${project.id}-${index}`}
-                  className={`gallery-shot${shot.src ? '' : ' is-placeholder'}`}
-                  style={
-                    shot.src
-                      ? undefined
-                      : {
-                          background: `linear-gradient(145deg, ${project.accent}33, ${project.accent}10)`,
-                        }
-                  }
-                >
-                  {shot.src ? (
-                    <img src={shot.src} alt={shot.caption} loading="lazy" />
-                  ) : (
-                    <span className="gallery-placeholder-label">
-                      Captura pendiente
-                    </span>
-                  )}
-                  <figcaption>{shot.caption}</figcaption>
-                </figure>
-              ))}
-            </div>
-
-            <div className="project-actions">
-              <a href={project.repoUrl} target="_blank" rel="noreferrer">
-                Repositorio
-              </a>
-              {project.liveUrl ? (
-                <a href={project.liveUrl} target="_blank" rel="noreferrer">
-                  Ver en vivo
-                </a>
-              ) : null}
-            </div>
+      {open ? (
+        <div className="project-detail">
+          <div className="gallery" tabIndex={0} aria-label={`Galería de ${project.name}`}>
+            {project.gallery.map((shot, index) => (
+              <figure
+                key={`${project.id}-${index}`}
+                className={`gallery-shot${shot.src ? '' : ' is-placeholder'}`}
+                style={
+                  shot.src
+                    ? undefined
+                    : {
+                        background: `linear-gradient(145deg, ${project.accent}44, ${project.accent}12)`,
+                      }
+                }
+              >
+                {shot.src ? (
+                  <img src={shot.src} alt={shot.caption} loading="lazy" />
+                ) : (
+                  <span className="gallery-placeholder-label">
+                    Captura pendiente
+                  </span>
+                )}
+                <figcaption>{shot.caption}</figcaption>
+              </figure>
+            ))}
           </div>
-        ) : null}
-      </div>
+
+          <div className="project-actions">
+            <a href={project.repoUrl} target="_blank" rel="noreferrer">
+              Repositorio
+            </a>
+            {project.liveUrl ? (
+              <a href={project.liveUrl} target="_blank" rel="noreferrer">
+                Ver en vivo
+              </a>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </li>
   )
 }
 
 function App() {
+  const [theme, setTheme] = useState<Theme>(() =>
+    typeof window === 'undefined' ? 'light' : getInitialTheme(),
+  )
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    localStorage.setItem('er-labs-theme', theme)
+  }, [theme])
+
+  const toggleTheme = () => {
+    setTheme((current) => (current === 'dark' ? 'light' : 'dark'))
+  }
+
   return (
     <div className="page">
       <div className="atmosphere" aria-hidden="true" />
+      <div className="grid-noise" aria-hidden="true" />
 
       <header className="nav">
         <a className="nav-brand" href="#top">
-          ER Labs
+          <span className="nav-mark">ER</span>
+          Labs
         </a>
-        <nav className="nav-links" aria-label="Principal">
-          <a href="#proyectos">Proyectos</a>
-          <a href="#equipo">Equipo</a>
-        </nav>
+        <div className="nav-right">
+          <nav className="nav-links" aria-label="Principal">
+            <a href="#proyectos">Proyectos</a>
+            <a href="#equipo">Equipo</a>
+          </nav>
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={toggleTheme}
+            aria-label={
+              theme === 'dark'
+                ? 'Cambiar a modo claro'
+                : 'Cambiar a modo oscuro'
+            }
+          >
+            <span className="theme-toggle-track">
+              <span className="theme-toggle-thumb" />
+            </span>
+            <span className="theme-toggle-label">
+              {theme === 'dark' ? 'Oscuro' : 'Claro'}
+            </span>
+          </button>
+        </div>
       </header>
 
       <main id="top">
         <section className="hero">
           <div className="hero-copy">
+            <p className="eyebrow">Laboratorio de producto</p>
             <p className="brand-mark">ER Labs</p>
-            <h1>Construimos software que ya se puede usar.</h1>
+            <h1>Software que ya se puede usar, no demos eternas.</h1>
             <p className="hero-lead">
-              Laboratorio de producto de Ramiro y Emiliano. MVPs vivos,
-              iteración constante y código que sale a la calle.
+              Construimos MVPs vivos con Ramiro y Emiliano: precisión de
+              producto, iteración constante y detalle de front que se nota.
             </p>
             <div className="hero-actions">
               <a className="btn btn-primary" href="#proyectos">
                 Ver proyectos
               </a>
               <a className="btn btn-ghost" href="#equipo">
-                Conocer el equipo
+                El equipo
               </a>
             </div>
           </div>
 
           <div className="hero-stage" aria-hidden="true">
             <div className="stage-glow" />
-            <div className="stage-orbit" />
+            <div className="stage-ring" />
 
             <article className="stage-panel stage-panel-a">
               <header className="panel-chrome">
@@ -172,10 +221,10 @@ function App() {
 
         <section className="projects" id="proyectos">
           <div className="section-head">
+            <p className="eyebrow">Selected work</p>
             <h2>Proyectos</h2>
             <p>
-              Cada uno con descripción, links y una galería scrolleable de
-              capturas. Van a sumar fotos reales de las apps.
+              Cada producto con galería, descripción y acceso al código o demo.
             </p>
           </div>
 
@@ -188,8 +237,9 @@ function App() {
 
         <section className="team" id="equipo">
           <div className="section-head">
+            <p className="eyebrow">People</p>
             <h2>Equipo</h2>
-            <p>Dos desarrolladores detrás de ER Labs.</p>
+            <p>Dos desarrolladores. Una misma barra de calidad.</p>
           </div>
           <div className="team-grid">
             {team.map((member) => (
@@ -200,6 +250,9 @@ function App() {
                 target="_blank"
                 rel="noreferrer"
               >
+                <span className="team-index" aria-hidden="true">
+                  0{team.indexOf(member) + 1}
+                </span>
                 <span className="team-name">{member.name}</span>
                 <span className="team-handle">@{member.handle}</span>
                 <span className="team-role">{member.role}</span>
@@ -210,8 +263,11 @@ function App() {
       </main>
 
       <footer className="footer">
-        <p className="footer-brand">ER Labs</p>
-        <p>Software en construcción, con intención de durar.</p>
+        <div>
+          <p className="footer-brand">ER Labs</p>
+          <p>Software en construcción, con intención de durar.</p>
+        </div>
+        <p className="footer-meta">© {new Date().getFullYear()}</p>
       </footer>
     </div>
   )
