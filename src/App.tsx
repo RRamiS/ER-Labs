@@ -1,4 +1,10 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+} from 'react'
 import { projects, team, type Project } from './data/projects'
 import './App.css'
 
@@ -12,24 +18,69 @@ function getInitialTheme(): Theme {
     : 'light'
 }
 
-function ProjectCard({ project }: { project: Project }) {
+function useReveal<T extends HTMLElement = HTMLElement>() {
+  const ref = useRef<T | null>(null)
+
+  useEffect(() => {
+    const node = ref.current
+    if (!node) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          node.classList.add('is-visible')
+          observer.unobserve(node)
+        }
+      },
+      { threshold: 0.14, rootMargin: '0px 0px -8% 0px' },
+    )
+
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+
+  return ref
+}
+
+function ProjectCard({
+  project,
+  index,
+}: {
+  project: Project
+  index: number
+}) {
   const [open, setOpen] = useState(false)
   const cover = project.gallery.find((shot) => shot.src)?.src
+  const cardRef = useReveal<HTMLLIElement>()
+
+  const onMove = (event: MouseEvent<HTMLLIElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    const x = ((event.clientX - rect.left) / rect.width) * 100
+    const y = ((event.clientY - rect.top) / rect.height) * 100
+    event.currentTarget.style.setProperty('--mx', `${x}%`)
+    event.currentTarget.style.setProperty('--my', `${y}%`)
+  }
 
   return (
-    <li className={`project-row${open ? ' is-open' : ''}`}>
+    <li
+      ref={cardRef}
+      className={`project-row reveal${open ? ' is-open' : ''}`}
+      style={{ '--delay': `${index * 70}ms`, '--accent': project.accent } as CSSProperties}
+      onMouseMove={onMove}
+    >
       <button
         type="button"
         className="project-toggle"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
-        <div className="project-preview" style={{ '--accent': project.accent } as CSSProperties}>
+        <div className="project-preview">
           {cover ? (
             <img src={cover} alt="" loading="lazy" />
           ) : (
             <div className="project-preview-empty" />
           )}
+          <span className="project-preview-glow" aria-hidden="true" />
         </div>
 
         <div className="project-copy">
@@ -53,9 +104,9 @@ function ProjectCard({ project }: { project: Project }) {
       {open ? (
         <div className="project-detail">
           <div className="gallery" tabIndex={0} aria-label={`Galería de ${project.name}`}>
-            {project.gallery.map((shot, index) => (
+            {project.gallery.map((shot, shotIndex) => (
               <figure
-                key={`${project.id}-${index}`}
+                key={`${project.id}-${shotIndex}`}
                 className={`gallery-shot${shot.src ? '' : ' is-placeholder'}`}
                 style={
                   shot.src
@@ -78,11 +129,11 @@ function ProjectCard({ project }: { project: Project }) {
           </div>
 
           <div className="project-actions">
-            <a href={project.repoUrl} target="_blank" rel="noreferrer">
+            <a className="action-link" href={project.repoUrl} target="_blank" rel="noreferrer">
               Repositorio
             </a>
             {project.liveUrl ? (
-              <a href={project.liveUrl} target="_blank" rel="noreferrer">
+              <a className="action-link" href={project.liveUrl} target="_blank" rel="noreferrer">
                 Ver en vivo
               </a>
             ) : null}
@@ -97,20 +148,39 @@ function App() {
   const [theme, setTheme] = useState<Theme>(() =>
     typeof window === 'undefined' ? 'light' : getInitialTheme(),
   )
+  const projectsRef = useReveal<HTMLElement>()
+  const teamRef = useReveal<HTMLElement>()
+  const pageRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     localStorage.setItem('er-labs-theme', theme)
   }, [theme])
 
+  useEffect(() => {
+    const page = pageRef.current
+    if (!page) return
+
+    const onMove = (event: globalThis.MouseEvent) => {
+      page.style.setProperty('--spot-x', `${event.clientX}px`)
+      page.style.setProperty('--spot-y', `${event.clientY}px`)
+    }
+
+    window.addEventListener('pointermove', onMove, { passive: true })
+    return () => window.removeEventListener('pointermove', onMove)
+  }, [])
+
   const toggleTheme = () => {
     setTheme((current) => (current === 'dark' ? 'light' : 'dark'))
   }
 
   return (
-    <div className="page">
+    <div className="page" ref={pageRef}>
       <div className="atmosphere" aria-hidden="true" />
+      <div className="mesh-a" aria-hidden="true" />
+      <div className="mesh-b" aria-hidden="true" />
       <div className="grid-noise" aria-hidden="true" />
+      <div className="cursor-spot" aria-hidden="true" />
 
       <header className="nav">
         <a className="nav-brand" href="#top">
@@ -146,7 +216,9 @@ function App() {
         <section className="hero">
           <div className="hero-copy">
             <p className="eyebrow">Laboratorio de producto</p>
-            <p className="brand-mark">ER Labs</p>
+            <p className="brand-mark">
+              <span>ER Labs</span>
+            </p>
             <h1>Software que ya se puede usar, no demos eternas.</h1>
             <p className="hero-lead">
               Construimos MVPs vivos con Ramiro y Emiliano: precisión de
@@ -154,7 +226,7 @@ function App() {
             </p>
             <div className="hero-actions">
               <a className="btn btn-primary" href="#proyectos">
-                Ver proyectos
+                <span>Ver proyectos</span>
               </a>
               <a className="btn btn-ghost" href="#equipo">
                 El equipo
@@ -219,7 +291,11 @@ function App() {
           </div>
         </section>
 
-        <section className="projects" id="proyectos">
+        <section
+          className="projects reveal"
+          id="proyectos"
+          ref={projectsRef}
+        >
           <div className="section-head">
             <p className="eyebrow">Selected work</p>
             <h2>Proyectos</h2>
@@ -229,29 +305,34 @@ function App() {
           </div>
 
           <ul className="project-list">
-            {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
+            {projects.map((project, index) => (
+              <ProjectCard key={project.id} project={project} index={index} />
             ))}
           </ul>
         </section>
 
-        <section className="team" id="equipo">
+        <section
+          className="team reveal"
+          id="equipo"
+          ref={teamRef}
+        >
           <div className="section-head">
             <p className="eyebrow">People</p>
             <h2>Equipo</h2>
             <p>Dos desarrolladores. Una misma barra de calidad.</p>
           </div>
           <div className="team-grid">
-            {team.map((member) => (
+            {team.map((member, index) => (
               <a
                 key={member.handle}
                 className="team-member"
                 href={member.url}
                 target="_blank"
                 rel="noreferrer"
+                style={{ '--delay': `${index * 90}ms` } as CSSProperties}
               >
                 <span className="team-index" aria-hidden="true">
-                  0{team.indexOf(member) + 1}
+                  0{index + 1}
                 </span>
                 <span className="team-name">{member.name}</span>
                 <span className="team-handle">@{member.handle}</span>
