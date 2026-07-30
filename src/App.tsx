@@ -85,6 +85,7 @@ function ProjectCard({
 
         <div className="project-copy">
           <div className="project-top">
+            <span className="project-index">0{index + 1}</span>
             <h3>{project.name}</h3>
             <span className={`status status-${project.status}`}>
               {project.status === 'mvp' ? 'MVP' : 'En desarrollo'}
@@ -150,6 +151,9 @@ function App() {
   )
   const projectsRef = useReveal<HTMLElement>()
   const teamRef = useReveal<HTMLElement>()
+  const statsRef = useReveal<HTMLElement>()
+  const craftRef = useReveal<HTMLElement>()
+  const ctaRef = useReveal<HTMLElement>()
   const pageRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -232,6 +236,17 @@ function App() {
                 El equipo
               </a>
             </div>
+            <div className="hero-meta">
+              <span className="meta-chip">
+                <i className="meta-dot is-live" />
+                {projects.filter((p) => p.status === 'desarrollo').length} en desarrollo
+              </span>
+              <span className="meta-chip">
+                <i className="meta-dot is-mvp" />
+                {projects.filter((p) => p.status === 'mvp').length} MVP vivos
+              </span>
+              <span className="meta-chip">2 builders · ER Labs</span>
+            </div>
           </div>
 
           <div className="hero-stage" aria-hidden="true">
@@ -291,6 +306,37 @@ function App() {
           </div>
         </section>
 
+        <div className="marquee" aria-hidden="true">
+          <div className="marquee-track">
+            {[...projects, ...projects].map((project, index) => (
+              <span key={`${project.id}-${index}`} className="marquee-item">
+                <i style={{ background: project.accent }} />
+                {project.name}
+                <em>{project.status === 'mvp' ? 'MVP' : 'DEV'}</em>
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <section className="stats reveal" ref={statsRef}>
+          <article className="stat-card">
+            <strong>{projects.length}</strong>
+            <span>Productos en el lab</span>
+          </article>
+          <article className="stat-card">
+            <strong>{projects.filter((p) => p.liveUrl).length}</strong>
+            <span>Demos en vivo</span>
+          </article>
+          <article className="stat-card">
+            <strong>2</strong>
+            <span>Builders full-stack</span>
+          </article>
+          <article className="stat-card">
+            <strong>MVP+</strong>
+            <span>Ship temprano, iterar fuerte</span>
+          </article>
+        </section>
+
         <section
           className="projects reveal"
           id="proyectos"
@@ -309,6 +355,40 @@ function App() {
               <ProjectCard key={project.id} project={project} index={index} />
             ))}
           </ul>
+        </section>
+
+        <section className="craft reveal" ref={craftRef}>
+          <div className="section-head">
+            <p className="eyebrow">Cómo laburamos</p>
+            <h2>Craft de producto</h2>
+            <p>Pocas reglas, bien aplicadas. Eso se siente en la UI.</p>
+          </div>
+          <div className="craft-grid">
+            <article className="craft-card">
+              <span className="craft-num">01</span>
+              <h3>MVP usable</h3>
+              <p>
+                Primero que camine. Después pulimos. Cada repo ya tiene algo
+                que se puede mostrar o probar.
+              </p>
+            </article>
+            <article className="craft-card">
+              <span className="craft-num">02</span>
+              <h3>Detalle de front</h3>
+              <p>
+                Tipografía, estados, motion y contraste. Lo que hace que un
+                producto se sienta caro sin gritar.
+              </p>
+            </article>
+            <article className="craft-card">
+              <span className="craft-num">03</span>
+              <h3>Iteración real</h3>
+              <p>
+                Feedback, demos y commits. Construimos en pareja y empujamos
+                el mismo estándar de calidad.
+              </p>
+            </article>
+          </div>
         </section>
 
         <section
@@ -341,12 +421,49 @@ function App() {
             ))}
           </div>
         </section>
+
+        <section className="cta-band reveal" ref={ctaRef}>
+          <div>
+            <p className="eyebrow">Siguiente paso</p>
+            <h2>¿Querés ver código o hablar de un build?</h2>
+            <p>
+              Todo lo que mostramos vive en repos reales. El lab sigue
+              sumando producto.
+            </p>
+          </div>
+          <div className="cta-actions">
+            <a
+              className="btn btn-primary"
+              href="https://github.com/RRamiS/ER-Labs"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Repo de esta web
+            </a>
+            <a className="btn btn-ghost" href="#proyectos">
+              Volver a proyectos
+            </a>
+          </div>
+        </section>
       </main>
 
       <footer className="footer">
         <div>
           <p className="footer-brand">ER Labs</p>
           <p>Software en construcción, con intención de durar.</p>
+          <div className="footer-links">
+            <a href="https://github.com/RRamiS" target="_blank" rel="noreferrer">
+              Ramiro
+            </a>
+            <a
+              href="https://github.com/EmilianoArias021"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Emiliano
+            </a>
+            <a href="#proyectos">Proyectos</a>
+          </div>
         </div>
         <p className="footer-meta">© {new Date().getFullYear()}</p>
       </footer>
