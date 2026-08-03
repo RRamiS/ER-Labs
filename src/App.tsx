@@ -97,14 +97,15 @@ function ShotPeek({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
+      event.stopPropagation()
       setPhase('exit')
     }
     const prevOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    window.addEventListener('keydown', onKey)
+    window.addEventListener('keydown', onKey, true)
     return () => {
       document.body.style.overflow = prevOverflow
-      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keydown', onKey, true)
     }
   }, [])
 
@@ -243,6 +244,150 @@ function GalleryFigure({
   )
 }
 
+function ProjectCollage({
+  project,
+  onOpenModal,
+}: {
+  project: Project
+  onOpenModal: () => void
+}) {
+  return (
+    <div className="project-collage-section">
+      <div className="collage-header">
+        <div className="collage-title-line">
+          <span className="collage-badge" style={{ borderColor: `${project.accent}55` }}>
+            <span className="collage-badge-dot" style={{ background: project.accent }} />
+            SHOWROOM & GALERÍA DE CAPTURAS
+          </span>
+        </div>
+        <h4 className="collage-heading">Galería & Vistas de {project.name}</h4>
+        <p className="collage-subheading">
+          Haz clic en cualquier captura para desplegar el mapa mental interactivo con diagramas de flujo completos.
+        </p>
+      </div>
+
+      <div className="project-collage-grid">
+        {project.gallery.slice(0, 6).map((shot, index) => {
+          return (
+            <button
+              key={`${project.id}-collage-${index}`}
+              type="button"
+              className={`collage-tile tile-${index}`}
+              onClick={onOpenModal}
+              title={`Ver diagrama de flujo para ${shot.caption}`}
+            >
+              {shot.src ? (
+                <img src={shot.src} alt={shot.caption} loading="lazy" />
+              ) : (
+                <div
+                  className="collage-placeholder"
+                  style={{
+                    background: `linear-gradient(135deg, ${project.accent}44, ${project.accent}15)`,
+                  }}
+                />
+              )}
+              <div className="collage-tile-overlay">
+                <span className="collage-tile-tag">{shot.caption}</span>
+                <h5 className="collage-tile-title">{shot.stepTitle || shot.caption}</h5>
+                <span className="collage-tile-hint">Ver flujo interactivo →</span>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function FlowchartModal({
+  project,
+  onClose,
+  setPeek,
+  isPeekActive,
+}: {
+  project: Project
+  onClose: () => void
+  setPeek: (shot: PeekShot) => void
+  isPeekActive: boolean
+}) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isPeekActive) onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose, isPeekActive])
+
+  return createPortal(
+    <div className="flow-modal-backdrop" onClick={onClose}>
+      <div className="flow-modal-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="flow-modal-header">
+          <div className="flow-modal-title-group">
+            <span className="flow-modal-badge" style={{ background: `${project.accent}22`, color: project.accent, borderColor: `${project.accent}55` }}>
+              <span className="flow-modal-dot" style={{ background: project.accent }} />
+              DIAGRAMA DE INTERACCIÓN (4 MÓDULOS CLAVE)
+            </span>
+            <h3 className="flow-modal-title">Flujo de experiencia de {project.name}</h3>
+          </div>
+          <button type="button" className="flow-modal-close" onClick={onClose} aria-label="Cerrar modal">
+            ✕
+          </button>
+        </div>
+
+        <div className="flow-modal-body">
+          <div className="flowchart-track" tabIndex={0} aria-label={`Mapa conceptual y flujo de ${project.name}`}>
+            {project.gallery.slice(0, 4).map((shot, shotIndex) => {
+              return (
+                <div key={`modal-${project.id}-${shotIndex}`} className="flow-node">
+                  <div className="flow-card">
+                    <div className="flow-card-head">
+                      <span className="flow-dot-indicator" style={{ background: project.accent }} />
+                      <div className="flow-head-titles">
+                        <span className="flow-step-meta">{shot.caption}</span>
+                        <h5 className="flow-step-title">{shot.stepTitle || shot.caption}</h5>
+                      </div>
+                    </div>
+
+                    <GalleryFigure shot={shot} accent={project.accent} onPeek={setPeek} />
+
+                    <div className="flow-card-body">
+                      <div className="flow-action-badge">
+                        <span className="flow-lightning">⚡</span>
+                        <span>{shot.actionText || 'Interacción principal'}</span>
+                      </div>
+                      <p className="flow-description">{shot.description || shot.caption}</p>
+
+                      {shot.tags && shot.tags.length > 0 ? (
+                        <div className="flow-tags">
+                          {shot.tags.map((tag) => (
+                            <span key={tag} className="flow-tag">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {shotIndex < 3 ? (
+                    <div className="flow-arrow-connector" aria-hidden="true">
+                      <svg className="flow-curved-svg" viewBox="0 0 44 24">
+                        <path d="M 2 12 Q 22 4, 34 12" fill="none" stroke={project.accent} strokeWidth="2.2" strokeLinecap="round" />
+                        <polygon points="32,7 42,12 32,17" fill={project.accent} />
+                      </svg>
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 function ProjectCard({
   project,
   index,
@@ -251,7 +396,9 @@ function ProjectCard({
   index: number
 }) {
   const [open, setOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [peek, setPeek] = useState<PeekShot | null>(null)
+  const rowRef = useRef<HTMLLIElement | null>(null)
   const cover = project.gallery.find((shot) => shot.src)?.src
 
   const onMove = (event: MouseEvent<HTMLLIElement>) => {
@@ -262,8 +409,21 @@ function ProjectCard({
     event.currentTarget.style.setProperty('--my', `${y}%`)
   }
 
+  const handleToggle = () => {
+    setOpen((prev) => {
+      const next = !prev
+      if (next && rowRef.current) {
+        window.setTimeout(() => {
+          rowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 150)
+      }
+      return next
+    })
+  }
+
   return (
     <li
+      ref={rowRef}
       className={`project-row${open ? ' is-open' : ''}`}
       style={{ '--accent': project.accent } as CSSProperties}
       onMouseMove={onMove}
@@ -272,7 +432,7 @@ function ProjectCard({
         type="button"
         className="project-toggle"
         aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
+        onClick={handleToggle}
       >
         <div className="project-preview">
           {cover ? (
@@ -295,36 +455,42 @@ function ProjectCard({
           <div className="project-meta">
             <span>{project.stack}</span>
             <span className="project-hint">
-              {open ? 'Cerrar' : 'Abrir galería'}
-              <span aria-hidden="true"> →</span>
+              {open ? 'Ocultar galería' : 'Ver showroom & flujo'}
+              <span className={`project-hint-arrow${open ? ' is-open' : ''}`} aria-hidden="true"> →</span>
             </span>
           </div>
         </div>
       </button>
 
-      <div className="project-detail" hidden={!open}>
-        <div className="gallery" tabIndex={0} aria-label={`Galería de ${project.name}`}>
-          {project.gallery.map((shot, shotIndex) => (
-            <GalleryFigure
-              key={`${project.id}-${shotIndex}`}
-              shot={shot}
-              accent={project.accent}
-              onPeek={setPeek}
-            />
-          ))}
-        </div>
+      <div className={`project-detail-wrapper${open ? ' is-expanded' : ''}`}>
+        <div className="project-detail-inner">
+          <div className="project-detail">
+            <ProjectCollage project={project} onOpenModal={() => setModalOpen(true)} />
 
-        <div className="project-actions">
-          <a className="action-link" href={project.repoUrl} target="_blank" rel="noreferrer">
-            Repositorio
-          </a>
-          {project.liveUrl ? (
-            <a className="action-link" href={project.liveUrl} target="_blank" rel="noreferrer">
-              Ver en vivo
-            </a>
-          ) : null}
+            <div className="project-actions">
+              <a className="action-link action-link-btn" href={project.repoUrl} target="_blank" rel="noreferrer">
+                <span>Código en GitHub</span>
+                <span aria-hidden="true">↗</span>
+              </a>
+              {project.liveUrl ? (
+                <a className="action-link action-link-btn primary" href={project.liveUrl} target="_blank" rel="noreferrer">
+                  <span>Probar demo en vivo</span>
+                  <span aria-hidden="true">↗</span>
+                </a>
+              ) : null}
+            </div>
+          </div>
         </div>
       </div>
+
+      {modalOpen ? (
+        <FlowchartModal
+          project={project}
+          onClose={() => setModalOpen(false)}
+          setPeek={setPeek}
+          isPeekActive={!!peek}
+        />
+      ) : null}
 
       {peek ? <ShotPeek shot={peek} onClose={() => setPeek(null)} /> : null}
     </li>
