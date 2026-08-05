@@ -4,6 +4,7 @@ import {
   useState,
   type CSSProperties,
   type MouseEvent,
+  type MutableRefObject,
   type TransitionEvent,
 } from 'react'
 import { createPortal } from 'react-dom'
@@ -68,8 +69,18 @@ function getPeekGeometry(
   options?: { annotated?: boolean },
 ) {
   const annotated = options?.annotated ?? false
-  const maxW = Math.min(annotated ? 980 : 880, window.innerWidth * (annotated ? 0.92 : 0.86))
-  const maxH = Math.min(window.innerHeight * (annotated ? 0.82 : 0.72), annotated ? 760 : 640)
+  if (annotated) {
+    const width = Math.min(1180, window.innerWidth * 0.96)
+    const height = Math.min(window.innerHeight * 0.9, 860)
+    return {
+      width,
+      height,
+      left: (window.innerWidth - width) / 2,
+      top: (window.innerHeight - height) / 2,
+    }
+  }
+  const maxW = Math.min(880, window.innerWidth * 0.86)
+  const maxH = Math.min(window.innerHeight * 0.72, 640)
   const ratio = origin.width / Math.max(origin.height, 1)
   let width = maxW
   let height = width / ratio
@@ -85,109 +96,88 @@ function getPeekGeometry(
   }
 }
 
-function hotspotAnchor(hotspot: ShotHotspot) {
-  const w = hotspot.w ?? 10
-  const h = hotspot.h ?? 8
-  const cx = hotspot.x + w / 2
-  const cy = hotspot.y + h / 2
-  const side = hotspot.side ?? 'right'
-
-  switch (side) {
-    case 'left':
-      return { boxX: hotspot.x, boxY: cy, callX: Math.max(4, hotspot.x - 18), callY: cy }
-    case 'top':
-      return { boxX: cx, boxY: hotspot.y, callX: cx, callY: Math.max(6, hotspot.y - 14) }
-    case 'bottom':
-      return { boxX: cx, boxY: hotspot.y + h, callX: cx, callY: Math.min(94, hotspot.y + h + 12) }
-    default:
-      return { boxX: hotspot.x + w, boxY: cy, callX: Math.min(96, hotspot.x + w + 16), callY: cy }
-  }
+function groupHotspots(hotspots: ShotHotspot[]) {
+  const left: ShotHotspot[] = []
+  const right: ShotHotspot[] = []
+  const bottom: ShotHotspot[] = []
+  hotspots.forEach((hotspot) => {
+    const side = hotspot.side ?? 'right'
+    if (side === 'left') left.push(hotspot)
+    else if (side === 'right') right.push(hotspot)
+    else bottom.push(hotspot)
+  })
+  return { left, right, bottom }
 }
 
-function HotspotLayer({
+type ConnectorLine = {
+  id: string
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+}
+
+function HotspotBoxes({
   hotspots,
   accent,
-  activeId,
-  onSelect,
+  boxRefs,
 }: {
   hotspots: ShotHotspot[]
   accent: string
-  activeId: string
-  onSelect: (id: string) => void
+  boxRefs: MutableRefObject<Map<string, HTMLElement | null>>
 }) {
-  const active = hotspots.find((item) => item.id === activeId) ?? hotspots[0]
-  if (!active) return null
-
-  const anchor = hotspotAnchor(active)
-  const path = `M ${anchor.boxX} ${anchor.boxY} Q ${(anchor.boxX + anchor.callX) / 2} ${(anchor.boxY + anchor.callY) / 2 - 4}, ${anchor.callX} ${anchor.callY}`
-
   return (
-    <div className="shot-hotspots" aria-hidden={false}>
-      <svg className="shot-hotspot-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <defs>
-          <marker
-            id={`hotspot-arrow-${active.id}`}
-            markerWidth="5"
-            markerHeight="5"
-            refX="4"
-            refY="2.5"
-            orient="auto"
-          >
-            <path d="M0,0 L5,2.5 L0,5 Z" fill={accent} />
-          </marker>
-        </defs>
-        <path
-          d={path}
-          fill="none"
-          stroke={accent}
-          strokeWidth="0.55"
-          strokeLinecap="round"
-          markerEnd={`url(#hotspot-arrow-${active.id})`}
-        />
-        <circle cx={anchor.callX} cy={anchor.callY} r="0.9" fill={accent} />
-      </svg>
-
-      {hotspots.map((hotspot) => {
-        const isActive = hotspot.id === active.id
-        return (
-          <button
-            key={hotspot.id}
-            type="button"
-            className={`shot-hotspot-box${isActive ? ' is-active' : ''}`}
-            style={
-              {
-                left: `${hotspot.x}%`,
-                top: `${hotspot.y}%`,
-                width: `${hotspot.w ?? 10}%`,
-                height: `${hotspot.h ?? 8}%`,
-                '--accent': accent,
-              } as CSSProperties
-            }
-            aria-pressed={isActive}
-            aria-label={hotspot.label}
-            onClick={(event) => {
-              event.stopPropagation()
-              onSelect(hotspot.id)
-            }}
-          />
-        )
-      })}
-
-      <aside
-        className={`shot-hotspot-callout side-${active.side ?? 'right'}${active ? ' is-visible' : ''}`}
-        style={
-          {
-            '--accent': accent,
-            left: `${anchor.callX}%`,
-            top: `${anchor.callY}%`,
-          } as CSSProperties
-        }
-        onClick={(event) => event.stopPropagation()}
-      >
-        <strong>{active.label}</strong>
-        {active.text ? <p>{active.text}</p> : null}
-      </aside>
+    <div className="shot-hotspots">
+      {hotspots.map((hotspot, index) => (
+        <div
+          key={hotspot.id}
+          ref={(node) => {
+            boxRefs.current.set(hotspot.id, node)
+          }}
+          className="shot-hotspot-box is-active"
+          style={
+            {
+              left: `${hotspot.x}%`,
+              top: `${hotspot.y}%`,
+              width: `${hotspot.w ?? 10}%`,
+              height: `${hotspot.h ?? 8}%`,
+              '--accent': accent,
+            } as CSSProperties
+          }
+          aria-hidden="true"
+        >
+          <span className="shot-hotspot-index">{index + 1}</span>
+        </div>
+      ))}
     </div>
+  )
+}
+
+function AnnotateNote({
+  hotspot,
+  index,
+  accent,
+  noteRefs,
+}: {
+  hotspot: ShotHotspot
+  index: number
+  accent: string
+  noteRefs: MutableRefObject<Map<string, HTMLElement | null>>
+}) {
+  return (
+    <article
+      ref={(node) => {
+        noteRefs.current.set(hotspot.id, node)
+      }}
+      className="shot-annotate-note"
+      style={{ '--accent': accent } as CSSProperties}
+    >
+      <span className="shot-annotate-note-index">{index}</span>
+      <div>
+        <strong>{hotspot.label}</strong>
+        {hotspot.text ? <p>{hotspot.text}</p> : null}
+      </div>
+    </article>
   )
 }
 
@@ -200,16 +190,21 @@ function ShotPeek({
 }) {
   const annotated = (shot.hotspots?.length ?? 0) > 0
   const [phase, setPhase] = useState<'enter' | 'open' | 'exit'>('enter')
-  const [activeHotspot, setActiveHotspot] = useState(
-    () => shot.hotspots?.[0]?.id ?? '',
-  )
+  const [connectors, setConnectors] = useState<ConnectorLine[]>([])
   const final = useRef(getPeekGeometry(shot.origin, { annotated }))
   const phaseRef = useRef(phase)
+  const layoutRef = useRef<HTMLDivElement | null>(null)
+  const boxRefs = useRef<Map<string, HTMLElement | null>>(new Map())
+  const noteRefs = useRef<Map<string, HTMLElement | null>>(new Map())
   phaseRef.current = phase
+
+  const groups = annotated && shot.hotspots ? groupHotspots(shot.hotspots) : null
+  const hotspotIndex = new Map(
+    (shot.hotspots ?? []).map((hotspot, index) => [hotspot.id, index + 1]),
+  )
 
   useEffect(() => {
     final.current = getPeekGeometry(shot.origin, { annotated })
-    setActiveHotspot(shot.hotspots?.[0]?.id ?? '')
     const frame = window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => setPhase('open'))
     })
@@ -232,18 +227,62 @@ function ShotPeek({
   }, [])
 
   useEffect(() => {
-    if (!annotated || !shot.hotspots || shot.hotspots.length < 2) return
-    if (phase !== 'open') return
-    const timer = window.setInterval(() => {
-      setActiveHotspot((current) => {
-        const list = shot.hotspots!
-        const index = list.findIndex((item) => item.id === current)
-        const next = list[(index + 1) % list.length]
-        return next.id
-      })
-    }, 3800)
-    return () => window.clearInterval(timer)
-  }, [annotated, phase, shot.hotspots])
+    if (!annotated || phase !== 'open' || !shot.hotspots?.length) {
+      setConnectors([])
+      return
+    }
+
+    const updateConnectors = () => {
+      const layout = layoutRef.current
+      if (!layout) return
+      const layoutRect = layout.getBoundingClientRect()
+      if (layoutRect.width < 1 || layoutRect.height < 1) return
+
+      const next: ConnectorLine[] = []
+      for (const hotspot of shot.hotspots!) {
+        const box = boxRefs.current.get(hotspot.id)
+        const note = noteRefs.current.get(hotspot.id)
+        if (!box || !note) continue
+        const boxRect = box.getBoundingClientRect()
+        const noteRect = note.getBoundingClientRect()
+        const side = hotspot.side ?? 'right'
+
+        let x1 = 0
+        let y1 = 0
+        let x2 = 0
+        let y2 = 0
+
+        if (side === 'left') {
+          x1 = ((boxRect.left - layoutRect.left) / layoutRect.width) * 100
+          y1 = ((boxRect.top + boxRect.height / 2 - layoutRect.top) / layoutRect.height) * 100
+          x2 = ((noteRect.right - layoutRect.left) / layoutRect.width) * 100
+          y2 = ((noteRect.top + noteRect.height / 2 - layoutRect.top) / layoutRect.height) * 100
+        } else if (side === 'right') {
+          x1 = ((boxRect.right - layoutRect.left) / layoutRect.width) * 100
+          y1 = ((boxRect.top + boxRect.height / 2 - layoutRect.top) / layoutRect.height) * 100
+          x2 = ((noteRect.left - layoutRect.left) / layoutRect.width) * 100
+          y2 = ((noteRect.top + noteRect.height / 2 - layoutRect.top) / layoutRect.height) * 100
+        } else {
+          x1 = ((boxRect.left + boxRect.width / 2 - layoutRect.left) / layoutRect.width) * 100
+          y1 = ((boxRect.bottom - layoutRect.top) / layoutRect.height) * 100
+          x2 = ((noteRect.left + noteRect.width / 2 - layoutRect.left) / layoutRect.width) * 100
+          y2 = ((noteRect.top - layoutRect.top) / layoutRect.height) * 100
+        }
+
+        next.push({ id: hotspot.id, x1, y1, x2, y2 })
+      }
+      setConnectors(next)
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(updateConnectors)
+    })
+    window.addEventListener('resize', updateConnectors)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('resize', updateConnectors)
+    }
+  }, [annotated, phase, shot])
 
   const requestClose = () => setPhase('exit')
 
@@ -274,8 +313,7 @@ function ShotPeek({
             top: final.current.top,
             left: final.current.left,
             width: final.current.width,
-            height: annotated ? 'auto' : final.current.height,
-            maxHeight: annotated ? final.current.height : undefined,
+            height: final.current.height,
             transform: expanded
               ? 'translate3d(0, 0, 0) scale(1, 1)'
               : `translate3d(${dx}px, ${dy}px, 0) scale(${sx}, ${sy})`,
@@ -284,38 +322,122 @@ function ShotPeek({
         onClick={(event) => event.stopPropagation()}
         onTransitionEnd={onFrameTransitionEnd}
       >
-        <div className="shot-peek-media">
-          <img src={shot.src} alt={shot.caption} />
-          {annotated && shot.hotspots ? (
-            <HotspotLayer
-              hotspots={shot.hotspots}
-              accent={shot.accent}
-              activeId={activeHotspot}
-              onSelect={setActiveHotspot}
-            />
-          ) : null}
-        </div>
-
-        {annotated && shot.hotspots && shot.hotspots.length > 0 ? (
-          <div className="shot-hotspot-legend">
-            {shot.hotspots.map((hotspot) => (
-              <button
-                key={hotspot.id}
-                type="button"
-                className={`shot-hotspot-chip${hotspot.id === activeHotspot ? ' is-active' : ''}`}
-                style={{ '--accent': shot.accent } as CSSProperties}
-                onClick={() => setActiveHotspot(hotspot.id)}
-              >
-                {hotspot.label}
+        {annotated && shot.hotspots && groups ? (
+          <>
+            <header className="shot-annotate-header">
+              <div>
+                <p className="shot-annotate-kicker">Captura anotada</p>
+                <h3>{shot.caption}</h3>
+              </div>
+              <button type="button" className="shot-peek-close" onClick={requestClose}>
+                Cerrar
               </button>
-            ))}
-          </div>
-        ) : null}
+            </header>
 
-        <figcaption>{shot.caption}</figcaption>
-        <button type="button" className="shot-peek-close" onClick={requestClose}>
-          Cerrar
-        </button>
+            <div className="shot-annotate-body" ref={layoutRef}>
+              <div className="shot-annotate-rail is-left">
+                {groups.left.map((hotspot) => (
+                  <AnnotateNote
+                    key={hotspot.id}
+                    hotspot={hotspot}
+                    index={hotspotIndex.get(hotspot.id) ?? 1}
+                    accent={shot.accent}
+                    noteRefs={noteRefs}
+                  />
+                ))}
+              </div>
+
+              <div className="shot-peek-media">
+                <div className="shot-peek-media-inner">
+                  <img
+                    src={shot.src}
+                    alt={shot.caption}
+                    onLoad={() => {
+                      window.dispatchEvent(new Event('resize'))
+                    }}
+                  />
+                  <HotspotBoxes
+                    hotspots={shot.hotspots}
+                    accent={shot.accent}
+                    boxRefs={boxRefs}
+                  />
+                </div>
+              </div>
+
+              <div className="shot-annotate-rail is-right">
+                {groups.right.map((hotspot) => (
+                  <AnnotateNote
+                    key={hotspot.id}
+                    hotspot={hotspot}
+                    index={hotspotIndex.get(hotspot.id) ?? 1}
+                    accent={shot.accent}
+                    noteRefs={noteRefs}
+                  />
+                ))}
+              </div>
+
+              <div className="shot-annotate-rail is-bottom">
+                {groups.bottom.map((hotspot) => (
+                  <AnnotateNote
+                    key={hotspot.id}
+                    hotspot={hotspot}
+                    index={hotspotIndex.get(hotspot.id) ?? 1}
+                    accent={shot.accent}
+                    noteRefs={noteRefs}
+                  />
+                ))}
+              </div>
+
+              {connectors.length > 0 ? (
+                <svg
+                  className="shot-annotate-connector"
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                >
+                  <defs>
+                    <marker
+                      id="annotate-arrow-head"
+                      markerWidth="4"
+                      markerHeight="4"
+                      refX="3.2"
+                      refY="2"
+                      orient="auto"
+                    >
+                      <path d="M0,0 L4,2 L0,4 Z" fill={shot.accent} />
+                    </marker>
+                  </defs>
+                  {connectors.map((line) => {
+                    const curveX = (line.x1 + line.x2) / 2
+                    const curveY = (line.y1 + line.y2) / 2 - 4
+                    return (
+                      <path
+                        key={line.id}
+                        d={`M ${line.x1} ${line.y1} Q ${curveX} ${curveY}, ${line.x2} ${line.y2}`}
+                        fill="none"
+                        stroke={shot.accent}
+                        strokeWidth="0.4"
+                        strokeLinecap="round"
+                        markerEnd="url(#annotate-arrow-head)"
+                        opacity="0.9"
+                      />
+                    )
+                  })}
+                </svg>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="shot-peek-media">
+              <img src={shot.src} alt={shot.caption} />
+            </div>
+            <figcaption>{shot.caption}</figcaption>
+            <button type="button" className="shot-peek-close" onClick={requestClose}>
+              Cerrar
+            </button>
+          </>
+        )}
       </figure>
     </div>,
     document.body,
