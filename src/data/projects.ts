@@ -1,5 +1,20 @@
 export type ProjectStatus = 'mvp' | 'desarrollo'
 
+export type ShotHotspot = {
+  id: string
+  /** Left edge as % of image width (0–100). */
+  x: number
+  /** Top edge as % of image height (0–100). */
+  y: number
+  /** Box width as % of image width. */
+  w?: number
+  /** Box height as % of image height. */
+  h?: number
+  label: string
+  text?: string
+  side?: 'left' | 'right' | 'top' | 'bottom'
+}
+
 export type GalleryShot = {
   src?: string
   caption: string
@@ -7,6 +22,7 @@ export type GalleryShot = {
   description?: string
   actionText?: string
   tags?: string[]
+  hotspots?: ShotHotspot[]
 }
 
 export type Project = {
@@ -40,6 +56,38 @@ export const projects: Project[] = [
         actionText: 'Explorar destacados y ofertas',
         description: 'Recomendaciones principales y vehículos en tendencia.',
         tags: ['Hero Banner', 'Populares'],
+        hotspots: [
+          {
+            id: 'vehio-nav',
+            x: 18,
+            y: 5.5,
+            w: 28,
+            h: 5,
+            label: 'Navegación',
+            text: 'Comprar, compra segura y destacados en un click.',
+            side: 'bottom',
+          },
+          {
+            id: 'vehio-search',
+            x: 22,
+            y: 48,
+            w: 56,
+            h: 18,
+            label: 'Buscador central',
+            text: 'Marca, modelo o ubicación con atajos rápidos.',
+            side: 'top',
+          },
+          {
+            id: 'vehio-publish',
+            x: 62,
+            y: 5.5,
+            w: 16,
+            h: 5,
+            label: 'Publicar',
+            text: 'CTA para cargar un vehículo al marketplace.',
+            side: 'bottom',
+          },
+        ],
       },
       {
         src: '/projects/vehio/02-beneficios.png',
@@ -269,6 +317,48 @@ export const projects: Project[] = [
         actionText: 'Revisar vendido y cobrado',
         description: 'Situación financiera de la finca: ventas, cobranzas y neto.',
         tags: ['Dashboard', 'KPIs'],
+        hotspots: [
+          {
+            id: 'fincos-metrics',
+            x: 8,
+            y: 28,
+            w: 84,
+            h: 22,
+            label: 'KPIs financieros',
+            text: 'Vendido, cobrado, por cobrar y neto finca sobre lo efectivamente cobrado.',
+            side: 'bottom',
+          },
+          {
+            id: 'fincos-debtors',
+            x: 8,
+            y: 52,
+            w: 42,
+            h: 22,
+            label: 'Clientes deudores',
+            text: 'Saldo pendiente por cliente y cultivo (ej. Verdulería El Mercado).',
+            side: 'right',
+          },
+          {
+            id: 'fincos-partners',
+            x: 52,
+            y: 52,
+            w: 40,
+            h: 22,
+            label: 'Medieros',
+            text: 'Parte cobrada y saldo a pagar (Beto 30%).',
+            side: 'left',
+          },
+          {
+            id: 'fincos-period',
+            x: 62,
+            y: 20,
+            w: 30,
+            h: 6,
+            label: 'Filtro de período',
+            text: 'Hoy, semana o mes para recortar el tablero.',
+            side: 'bottom',
+          },
+        ],
       },
       {
         src: '/projects/fincos/02-fincas.png',
@@ -293,6 +383,38 @@ export const projects: Project[] = [
         actionText: 'Registrar cobros parciales',
         description: 'Ventas a verdulerías con saldo pendiente y parte del mediero.',
         tags: ['Ventas', 'Cobranza'],
+        hotspots: [
+          {
+            id: 'fincos-collect',
+            x: 8,
+            y: 22,
+            w: 84,
+            h: 28,
+            label: 'Registrar cobranza',
+            text: 'Elegís la venta pendiente y cobrás un monto; el mediero se calcula sobre lo cobrado.',
+            side: 'bottom',
+          },
+          {
+            id: 'fincos-sale-row',
+            x: 8,
+            y: 58,
+            w: 84,
+            h: 14,
+            label: 'Venta parcial',
+            text: 'Bruto $100.000 · cobrado $40.000 · pendiente $60.000 · Beto 30%.',
+            side: 'top',
+          },
+          {
+            id: 'fincos-status',
+            x: 78,
+            y: 62,
+            w: 14,
+            h: 6,
+            label: 'Estado',
+            text: 'PARTIALLY_PAID marca que todavía hay saldo por cobrar.',
+            side: 'left',
+          },
+        ],
       },
       {
         src: '/projects/fincos/05-medieros.png',

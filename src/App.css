@@ -1993,6 +1993,31 @@ h3,
     0 28px 70px color-mix(in srgb, #000 28%, transparent);
 }
 
+.shot-peek-frame.is-annotated {
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  max-height: min(82vh, 760px);
+}
+
+.shot-peek-frame.is-annotated.is-open {
+  overflow: hidden;
+}
+
+.shot-peek-media {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--ink) 6%, var(--bg-solid));
+}
+
+.shot-peek-frame:not(.is-annotated) .shot-peek-media {
+  height: 100%;
+}
+
+.shot-peek-media img,
 .shot-peek-frame img {
   display: block;
   width: 100%;
@@ -2000,6 +2025,160 @@ h3,
   object-fit: cover;
   object-position: top center;
   background: color-mix(in srgb, var(--ink) 6%, var(--bg-solid));
+}
+
+.shot-peek-frame.is-annotated .shot-peek-media img {
+  height: auto;
+  max-height: min(62vh, 560px);
+  object-fit: contain;
+  object-position: top center;
+}
+
+.shot-hotspots {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.shot-hotspot-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.shot-hotspot-box {
+  position: absolute;
+  pointer-events: auto;
+  margin: 0;
+  padding: 0;
+  border: 2px solid color-mix(in srgb, var(--accent) 88%, #fff);
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, #000 18%, transparent),
+    0 8px 22px color-mix(in srgb, #000 18%, transparent);
+  cursor: pointer;
+  transition:
+    background 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease,
+    transform 0.25s ease;
+}
+
+.shot-hotspot-box:hover,
+.shot-hotspot-box.is-active {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent),
+    0 10px 28px color-mix(in srgb, #000 22%, transparent);
+  transform: scale(1.01);
+}
+
+.shot-hotspot-callout {
+  position: absolute;
+  z-index: 4;
+  pointer-events: auto;
+  width: min(13.5rem, 46%);
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--bg-solid) 92%, transparent);
+  color: var(--ink);
+  box-shadow: 0 14px 34px color-mix(in srgb, #000 24%, transparent);
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.96);
+  transition:
+    opacity 0.28s var(--ease-out),
+    transform 0.28s var(--ease-out);
+}
+
+.shot-hotspot-callout.is-visible {
+  opacity: 1;
+}
+
+.shot-hotspot-callout.side-right {
+  transform: translate(0.45rem, -50%);
+}
+
+.shot-hotspot-callout.side-right.is-visible {
+  transform: translate(0.45rem, -50%);
+}
+
+.shot-hotspot-callout.side-left {
+  transform: translate(calc(-100% - 0.45rem), -50%);
+}
+
+.shot-hotspot-callout.side-left.is-visible {
+  transform: translate(calc(-100% - 0.45rem), -50%);
+}
+
+.shot-hotspot-callout.side-top {
+  transform: translate(-50%, calc(-100% - 0.45rem));
+}
+
+.shot-hotspot-callout.side-top.is-visible {
+  transform: translate(-50%, calc(-100% - 0.45rem));
+}
+
+.shot-hotspot-callout.side-bottom {
+  transform: translate(-50%, 0.45rem);
+}
+
+.shot-hotspot-callout.side-bottom.is-visible {
+  transform: translate(-50%, 0.45rem);
+}
+
+.shot-hotspot-callout strong {
+  display: block;
+  font-family: Syne, Figtree, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 750;
+  color: var(--accent);
+  margin-bottom: 0.2rem;
+}
+
+.shot-hotspot-callout p {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+
+.shot-hotspot-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.7rem 0.85rem 0.35rem;
+  background: var(--bg-solid);
+}
+
+.shot-hotspot-chip {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--bg-elevated);
+  color: var(--ink-soft);
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.shot-hotspot-chip:hover,
+.shot-hotspot-chip.is-active {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg-elevated));
+  color: var(--ink);
 }
 
 .shot-peek-frame figcaption,
@@ -2038,10 +2217,17 @@ h3,
   font-weight: 600;
 }
 
+.shot-peek-frame.is-annotated figcaption {
+  position: static;
+  margin: 0.35rem 0.85rem 0.85rem;
+  align-self: flex-start;
+}
+
 .shot-peek-close {
   position: absolute;
   top: 0.85rem;
   right: 0.85rem;
+  z-index: 5;
   padding: 0.4rem 0.75rem;
   border-radius: 999px;
   border: 1px solid var(--line);
@@ -2056,6 +2242,16 @@ h3,
 .shot-peek-close:hover {
   border-color: var(--line-strong);
   background: var(--bg-solid);
+}
+
+@media (max-width: 720px) {
+  .shot-hotspot-callout {
+    display: none;
+  }
+
+  .shot-hotspot-legend {
+    padding-bottom: 0.55rem;
+  }
 }
 
 .project-actions {

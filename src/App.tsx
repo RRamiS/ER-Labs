@@ -7,7 +7,13 @@ import {
   type TransitionEvent,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { projects, team, type GalleryShot, type Project } from './data/projects'
+import {
+  projects,
+  team,
+  type GalleryShot,
+  type Project,
+  type ShotHotspot,
+} from './data/projects'
 import './App.css'
 
 type Theme = 'light' | 'dark'
@@ -16,6 +22,7 @@ type PeekShot = {
   src: string
   caption: string
   accent: string
+  hotspots?: ShotHotspot[]
   origin: {
     top: number
     left: number
@@ -56,9 +63,13 @@ function useReveal<T extends HTMLElement = HTMLElement>() {
   return ref
 }
 
-function getPeekGeometry(origin: PeekShot['origin']) {
-  const maxW = Math.min(880, window.innerWidth * 0.86)
-  const maxH = Math.min(window.innerHeight * 0.72, 640)
+function getPeekGeometry(
+  origin: PeekShot['origin'],
+  options?: { annotated?: boolean },
+) {
+  const annotated = options?.annotated ?? false
+  const maxW = Math.min(annotated ? 980 : 880, window.innerWidth * (annotated ? 0.92 : 0.86))
+  const maxH = Math.min(window.innerHeight * (annotated ? 0.82 : 0.72), annotated ? 760 : 640)
   const ratio = origin.width / Math.max(origin.height, 1)
   let width = maxW
   let height = width / ratio
@@ -74,6 +85,112 @@ function getPeekGeometry(origin: PeekShot['origin']) {
   }
 }
 
+function hotspotAnchor(hotspot: ShotHotspot) {
+  const w = hotspot.w ?? 10
+  const h = hotspot.h ?? 8
+  const cx = hotspot.x + w / 2
+  const cy = hotspot.y + h / 2
+  const side = hotspot.side ?? 'right'
+
+  switch (side) {
+    case 'left':
+      return { boxX: hotspot.x, boxY: cy, callX: Math.max(4, hotspot.x - 18), callY: cy }
+    case 'top':
+      return { boxX: cx, boxY: hotspot.y, callX: cx, callY: Math.max(6, hotspot.y - 14) }
+    case 'bottom':
+      return { boxX: cx, boxY: hotspot.y + h, callX: cx, callY: Math.min(94, hotspot.y + h + 12) }
+    default:
+      return { boxX: hotspot.x + w, boxY: cy, callX: Math.min(96, hotspot.x + w + 16), callY: cy }
+  }
+}
+
+function HotspotLayer({
+  hotspots,
+  accent,
+  activeId,
+  onSelect,
+}: {
+  hotspots: ShotHotspot[]
+  accent: string
+  activeId: string
+  onSelect: (id: string) => void
+}) {
+  const active = hotspots.find((item) => item.id === activeId) ?? hotspots[0]
+  if (!active) return null
+
+  const anchor = hotspotAnchor(active)
+  const path = `M ${anchor.boxX} ${anchor.boxY} Q ${(anchor.boxX + anchor.callX) / 2} ${(anchor.boxY + anchor.callY) / 2 - 4}, ${anchor.callX} ${anchor.callY}`
+
+  return (
+    <div className="shot-hotspots" aria-hidden={false}>
+      <svg className="shot-hotspot-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <defs>
+          <marker
+            id={`hotspot-arrow-${active.id}`}
+            markerWidth="5"
+            markerHeight="5"
+            refX="4"
+            refY="2.5"
+            orient="auto"
+          >
+            <path d="M0,0 L5,2.5 L0,5 Z" fill={accent} />
+          </marker>
+        </defs>
+        <path
+          d={path}
+          fill="none"
+          stroke={accent}
+          strokeWidth="0.55"
+          strokeLinecap="round"
+          markerEnd={`url(#hotspot-arrow-${active.id})`}
+        />
+        <circle cx={anchor.callX} cy={anchor.callY} r="0.9" fill={accent} />
+      </svg>
+
+      {hotspots.map((hotspot) => {
+        const isActive = hotspot.id === active.id
+        return (
+          <button
+            key={hotspot.id}
+            type="button"
+            className={`shot-hotspot-box${isActive ? ' is-active' : ''}`}
+            style={
+              {
+                left: `${hotspot.x}%`,
+                top: `${hotspot.y}%`,
+                width: `${hotspot.w ?? 10}%`,
+                height: `${hotspot.h ?? 8}%`,
+                '--accent': accent,
+              } as CSSProperties
+            }
+            aria-pressed={isActive}
+            aria-label={hotspot.label}
+            onClick={(event) => {
+              event.stopPropagation()
+              onSelect(hotspot.id)
+            }}
+          />
+        )
+      })}
+
+      <aside
+        className={`shot-hotspot-callout side-${active.side ?? 'right'}${active ? ' is-visible' : ''}`}
+        style={
+          {
+            '--accent': accent,
+            left: `${anchor.callX}%`,
+            top: `${anchor.callY}%`,
+          } as CSSProperties
+        }
+        onClick={(event) => event.stopPropagation()}
+      >
+        <strong>{active.label}</strong>
+        {active.text ? <p>{active.text}</p> : null}
+      </aside>
+    </div>
+  )
+}
+
 function ShotPeek({
   shot,
   onClose,
@@ -81,18 +198,23 @@ function ShotPeek({
   shot: PeekShot
   onClose: () => void
 }) {
+  const annotated = (shot.hotspots?.length ?? 0) > 0
   const [phase, setPhase] = useState<'enter' | 'open' | 'exit'>('enter')
-  const final = useRef(getPeekGeometry(shot.origin))
+  const [activeHotspot, setActiveHotspot] = useState(
+    () => shot.hotspots?.[0]?.id ?? '',
+  )
+  const final = useRef(getPeekGeometry(shot.origin, { annotated }))
   const phaseRef = useRef(phase)
   phaseRef.current = phase
 
   useEffect(() => {
-    final.current = getPeekGeometry(shot.origin)
+    final.current = getPeekGeometry(shot.origin, { annotated })
+    setActiveHotspot(shot.hotspots?.[0]?.id ?? '')
     const frame = window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => setPhase('open'))
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [shot])
+  }, [shot, annotated])
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -109,6 +231,20 @@ function ShotPeek({
     }
   }, [])
 
+  useEffect(() => {
+    if (!annotated || !shot.hotspots || shot.hotspots.length < 2) return
+    if (phase !== 'open') return
+    const timer = window.setInterval(() => {
+      setActiveHotspot((current) => {
+        const list = shot.hotspots!
+        const index = list.findIndex((item) => item.id === current)
+        const next = list[(index + 1) % list.length]
+        return next.id
+      })
+    }, 3800)
+    return () => window.clearInterval(timer)
+  }, [annotated, phase, shot.hotspots])
+
   const requestClose = () => setPhase('exit')
 
   const onFrameTransitionEnd = (event: TransitionEvent<HTMLElement>) => {
@@ -124,21 +260,22 @@ function ShotPeek({
 
   return createPortal(
     <div
-      className={`shot-peek${expanded ? ' is-open' : ''}${phase === 'exit' ? ' is-exit' : ''}`}
+      className={`shot-peek${expanded ? ' is-open' : ''}${phase === 'exit' ? ' is-exit' : ''}${annotated ? ' is-annotated' : ''}`}
       role="dialog"
       aria-modal="true"
       aria-label={shot.caption}
       onClick={requestClose}
     >
       <figure
-        className={`shot-peek-frame${expanded ? ' is-open' : ''}`}
+        className={`shot-peek-frame${expanded ? ' is-open' : ''}${annotated ? ' is-annotated' : ''}`}
         style={
           {
             '--accent': shot.accent,
             top: final.current.top,
             left: final.current.left,
             width: final.current.width,
-            height: final.current.height,
+            height: annotated ? 'auto' : final.current.height,
+            maxHeight: annotated ? final.current.height : undefined,
             transform: expanded
               ? 'translate3d(0, 0, 0) scale(1, 1)'
               : `translate3d(${dx}px, ${dy}px, 0) scale(${sx}, ${sy})`,
@@ -147,7 +284,34 @@ function ShotPeek({
         onClick={(event) => event.stopPropagation()}
         onTransitionEnd={onFrameTransitionEnd}
       >
-        <img src={shot.src} alt={shot.caption} />
+        <div className="shot-peek-media">
+          <img src={shot.src} alt={shot.caption} />
+          {annotated && shot.hotspots ? (
+            <HotspotLayer
+              hotspots={shot.hotspots}
+              accent={shot.accent}
+              activeId={activeHotspot}
+              onSelect={setActiveHotspot}
+            />
+          ) : null}
+        </div>
+
+        {annotated && shot.hotspots && shot.hotspots.length > 0 ? (
+          <div className="shot-hotspot-legend">
+            {shot.hotspots.map((hotspot) => (
+              <button
+                key={hotspot.id}
+                type="button"
+                className={`shot-hotspot-chip${hotspot.id === activeHotspot ? ' is-active' : ''}`}
+                style={{ '--accent': shot.accent } as CSSProperties}
+                onClick={() => setActiveHotspot(hotspot.id)}
+              >
+                {hotspot.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
         <figcaption>{shot.caption}</figcaption>
         <button type="button" className="shot-peek-close" onClick={requestClose}>
           Cerrar
@@ -194,6 +358,7 @@ function GalleryFigure({
       src: shot.src,
       caption: shot.caption,
       accent,
+      hotspots: shot.hotspots,
       origin: {
         top: rect.top,
         left: rect.left,
@@ -246,10 +411,12 @@ function GalleryFigure({
 
 function ProjectCollage({
   project,
-  onOpenModal,
+  onOpenWalkthrough,
+  onOpenShot,
 }: {
   project: Project
-  onOpenModal: () => void
+  onOpenWalkthrough: () => void
+  onOpenShot: (shot: GalleryShot, origin: PeekShot['origin']) => void
 }) {
   return (
     <div className="project-collage-section">
@@ -259,10 +426,18 @@ function ProjectCollage({
             <span className="collage-badge-dot" style={{ background: project.accent }} />
             SHOWROOM & GALERÍA DE CAPTURAS
           </span>
+          <button
+            type="button"
+            className="collage-diagram-btn"
+            onClick={onOpenWalkthrough}
+            style={{ borderColor: `${project.accent}44`, color: project.accent }}
+          >
+            Walkthrough de módulos
+          </button>
         </div>
         <h4 className="collage-heading">Galería & Vistas de {project.name}</h4>
         <p className="collage-subheading">
-          Haz clic en cualquier captura para desplegar el mapa mental interactivo con diagramas de flujo completos.
+          Hacé clic en una captura para ampliarla y ver anotaciones sobre las partes clave de la pantalla.
         </p>
       </div>
 
@@ -273,8 +448,16 @@ function ProjectCollage({
               key={`${project.id}-collage-${index}`}
               type="button"
               className={`collage-tile tile-${index}`}
-              onClick={onOpenModal}
-              title={`Ver diagrama de flujo para ${shot.caption}`}
+              onClick={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect()
+                onOpenShot(shot, {
+                  top: rect.top,
+                  left: rect.left,
+                  width: rect.width,
+                  height: rect.height,
+                })
+              }}
+              title={`Explorar captura: ${shot.caption}`}
             >
               {shot.src ? (
                 <img src={shot.src} alt={shot.caption} loading="lazy" />
@@ -289,7 +472,9 @@ function ProjectCollage({
               <div className="collage-tile-overlay">
                 <span className="collage-tile-tag">{shot.caption}</span>
                 <h5 className="collage-tile-title">{shot.stepTitle || shot.caption}</h5>
-                <span className="collage-tile-hint">Ver flujo interactivo →</span>
+                <span className="collage-tile-hint">
+                  {shot.hotspots?.length ? 'Explorar anotaciones →' : 'Ampliar captura →'}
+                </span>
               </div>
             </button>
           )
@@ -325,9 +510,9 @@ function FlowchartModal({
           <div className="flow-modal-title-group">
             <span className="flow-modal-badge" style={{ background: `${project.accent}22`, color: project.accent, borderColor: `${project.accent}55` }}>
               <span className="flow-modal-dot" style={{ background: project.accent }} />
-              DIAGRAMA DE INTERACCIÓN (4 MÓDULOS CLAVE)
+              WALKTHROUGH · 4 MÓDULOS CLAVE
             </span>
-            <h3 className="flow-modal-title">Flujo de experiencia de {project.name}</h3>
+            <h3 className="flow-modal-title">Recorrido de módulos de {project.name}</h3>
           </div>
           <button type="button" className="flow-modal-close" onClick={onClose} aria-label="Cerrar modal">
             ✕
@@ -455,7 +640,7 @@ function ProjectCard({
           <div className="project-meta">
             <span>{project.stack}</span>
             <span className="project-hint">
-              {open ? 'Ocultar galería' : 'Ver showroom & flujo'}
+              {open ? 'Ocultar galería' : 'Ver showroom'}
               <span className={`project-hint-arrow${open ? ' is-open' : ''}`} aria-hidden="true"> →</span>
             </span>
           </div>
@@ -465,7 +650,20 @@ function ProjectCard({
       <div className={`project-detail-wrapper${open ? ' is-expanded' : ''}`}>
         <div className="project-detail-inner">
           <div className="project-detail">
-            <ProjectCollage project={project} onOpenModal={() => setModalOpen(true)} />
+            <ProjectCollage
+              project={project}
+              onOpenWalkthrough={() => setModalOpen(true)}
+              onOpenShot={(shot, origin) => {
+                if (!shot.src) return
+                setPeek({
+                  src: shot.src,
+                  caption: shot.caption,
+                  accent: project.accent,
+                  hotspots: shot.hotspots,
+                  origin,
+                })
+              }}
+            />
 
             <div className="project-actions">
               <a className="action-link action-link-btn" href={project.repoUrl} target="_blank" rel="noreferrer">
