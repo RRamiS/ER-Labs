@@ -624,21 +624,12 @@ function App() {
                 <span className="panel-dots" />
                 <span className="panel-label">FincOS</span>
               </header>
-              <div className="panel-shot panel-shot-fincos">
-                <div className="fincos-mock">
-                  <span className="fincos-chip">Parcelas</span>
-                  <div className="fincos-rows">
-                    <i />
-                    <i />
-                    <i />
-                  </div>
-                  <div className="fincos-tiles">
-                    <b />
-                    <b />
-                    <b />
-                    <b />
-                  </div>
-                </div>
+              <div className="panel-shot">
+                <img
+                  src="/projects/fincos/01-dashboard.png"
+                  alt=""
+                  loading="eager"
+                />
               </div>
             </article>
 
