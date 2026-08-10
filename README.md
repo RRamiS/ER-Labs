@@ -1,4 +1,4 @@
-# ER Labs
+# ER Sistemas
 
 Sitio web del laboratorio de software de **Ramiro** ([RRamiS](https://github.com/RRamiS)) y **Emiliano** ([EmilianoArias021](https://github.com/EmilianoArias021)).
 
