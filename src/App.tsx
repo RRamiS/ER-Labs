@@ -139,6 +139,7 @@ type ConnectorLine = {
   y1: number
   x2: number
   y2: number
+  side: 'left' | 'right'
 }
 
 function HotspotBoxes({
@@ -158,7 +159,7 @@ function HotspotBoxes({
           ref={(node) => {
             boxRefs.current.set(hotspot.id, node)
           }}
-          className="shot-hotspot-box is-active"
+          className="shot-hotspot-box"
           style={
             {
               left: `${hotspot.x}%`,
@@ -170,9 +171,11 @@ function HotspotBoxes({
           }
           aria-hidden="true"
         >
-          <span className="shot-hotspot-index">
-            {index + 1}
-          </span>
+          <span className="shot-hotspot-corner is-tl" />
+          <span className="shot-hotspot-corner is-tr" />
+          <span className="shot-hotspot-corner is-bl" />
+          <span className="shot-hotspot-corner is-br" />
+          <span className="shot-hotspot-index">{index + 1}</span>
         </div>
       ))}
     </div>
@@ -196,6 +199,7 @@ function AnnotateNote({
         noteRefs.current.set(hotspot.id, node)
       }}
       className="shot-annotate-note"
+      data-side={hotspot.side === 'left' || hotspot.side === 'right' ? hotspot.side : hotspot.x < 50 ? 'left' : 'right'}
       style={{ '--accent': accent } as CSSProperties}
     >
       <span className="shot-annotate-note-index">{index}</span>
@@ -207,6 +211,17 @@ function AnnotateNote({
   )
 }
 
+function getHotspotSide(
+  hotspot: ShotHotspot,
+  groups: { left: ShotHotspot[]; right: ShotHotspot[] },
+): 'left' | 'right' {
+  if (groups.left.some((item) => item.id === hotspot.id)) return 'left'
+  if (groups.right.some((item) => item.id === hotspot.id)) return 'right'
+  if (hotspot.side === 'left') return 'left'
+  if (hotspot.side === 'right') return 'right'
+  return hotspot.x < 50 ? 'left' : 'right'
+}
+
 function ShotPeek({
   shot,
   onClose,
@@ -216,10 +231,14 @@ function ShotPeek({
 }) {
   const annotated = (shot.hotspots?.length ?? 0) > 0
   const [connectors, setConnectors] = useState<ConnectorLine[]>([])
+  const [svgSize, setSvgSize] = useState({ width: 0, height: 0 })
+  const [connectorsReady, setConnectorsReady] = useState(false)
   const final = useRef(getPeekGeometry(shot.origin, { annotated }))
   const layoutRef = useRef<HTMLDivElement | null>(null)
+  const mediaRef = useRef<HTMLDivElement | null>(null)
   const boxRefs = useRef<Map<string, HTMLElement | null>>(new Map())
   const noteRefs = useRef<Map<string, HTMLElement | null>>(new Map())
+  const markerId = `annotate-arrow-head-${shot.layoutId ?? shot.src.replace(/\W+/g, '-')}`
 
   const groups = annotated && shot.hotspots ? groupHotspots(shot.hotspots) : null
   const hotspotIndex = new Map(
@@ -228,6 +247,7 @@ function ShotPeek({
 
   useEffect(() => {
     final.current = getPeekGeometry(shot.origin, { annotated })
+    setConnectorsReady(false)
   }, [shot, annotated])
 
   useEffect(() => {
@@ -247,53 +267,109 @@ function ShotPeek({
   useEffect(() => {
     if (!annotated || !shot.hotspots?.length) {
       setConnectors([])
+      setConnectorsReady(false)
       return
     }
 
+    const grouped = groupHotspots(shot.hotspots)
+    const expected = shot.hotspots.length
+    let alive = true
+    let frame = 0
+
     const updateConnectors = () => {
+      if (!alive) return
       const layout = layoutRef.current
       if (!layout) return
       const layoutRect = layout.getBoundingClientRect()
       if (layoutRect.width < 1 || layoutRect.height < 1) return
+
+      setSvgSize({ width: layoutRect.width, height: layoutRect.height })
 
       const next: ConnectorLine[] = []
       for (const hotspot of shot.hotspots!) {
         const box = boxRefs.current.get(hotspot.id)
         const note = noteRefs.current.get(hotspot.id)
         if (!box || !note) continue
-        
-        const indexEl = box.querySelector('.shot-hotspot-index')
-        const originRect = indexEl ? indexEl.getBoundingClientRect() : box.getBoundingClientRect()
-        const noteRect = note.getBoundingClientRect()
-        
-        const x1 = ((originRect.left + originRect.width / 2 - layoutRect.left) / layoutRect.width) * 100
-        const y1 = ((originRect.top + originRect.height / 2 - layoutRect.top) / layoutRect.height) * 100
-        const x2 = ((noteRect.left + noteRect.width / 2 - layoutRect.left) / layoutRect.width) * 100
-        const y2 = ((noteRect.top - layoutRect.top) / layoutRect.height) * 100
 
-        next.push({ id: hotspot.id, x1, y1, x2, y2 })
+        const side = getHotspotSide(hotspot, grouped)
+        const boxRect = box.getBoundingClientRect()
+        const noteRect = note.getBoundingClientRect()
+        const indexEl = box.querySelector('.shot-hotspot-index')
+        const originRect = indexEl?.getBoundingClientRect() ?? boxRect
+
+        // Salida desde el pin central (más limpio con esquinas suaves).
+        const x1 = originRect.left + originRect.width / 2 - layoutRect.left
+        const y1 = originRect.top + originRect.height / 2 - layoutRect.top
+
+        // Llegada: borde de la nota que mira la imagen.
+        const y2 = noteRect.top + noteRect.height / 2 - layoutRect.top
+        const x2 =
+          side === 'left'
+            ? noteRect.right - layoutRect.left
+            : noteRect.left - layoutRect.left
+
+        if (
+          !Number.isFinite(x1) ||
+          !Number.isFinite(y1) ||
+          !Number.isFinite(x2) ||
+          !Number.isFinite(y2)
+        ) {
+          continue
+        }
+
+        next.push({ id: hotspot.id, x1, y1, x2, y2, side })
       }
       setConnectors(next)
+      if (next.length === expected) setConnectorsReady(true)
     }
 
-    const frame = window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(updateConnectors)
-    })
-    window.addEventListener('resize', updateConnectors)
+    const schedule = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        requestAnimationFrame(updateConnectors)
+      })
+    }
+
+    schedule()
+    window.addEventListener('resize', schedule)
+
+    const layout = layoutRef.current
+    const media = mediaRef.current
+    const resizeObserver =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => schedule())
+        : null
+    if (layout) resizeObserver?.observe(layout)
+    if (media) resizeObserver?.observe(media)
+
+    const settleTimers = [80, 180, 320, 520, 800, 1100].map((ms) =>
+      window.setTimeout(schedule, ms),
+    )
+
     return () => {
-      window.cancelAnimationFrame(frame)
-      window.removeEventListener('resize', updateConnectors)
+      alive = false
+      cancelAnimationFrame(frame)
+      window.removeEventListener('resize', schedule)
+      resizeObserver?.disconnect()
+      settleTimers.forEach((id) => window.clearTimeout(id))
     }
   }, [annotated, shot])
 
   const requestClose = () => onClose()
+
+  const connectorPath = (line: ConnectorLine) => {
+    const dx = Math.max(36, Math.abs(line.x2 - line.x1) * 0.45)
+    const c1x = line.side === 'left' ? line.x1 - dx : line.x1 + dx
+    const c2x = line.side === 'left' ? line.x2 + dx : line.x2 - dx
+    return `M ${line.x1} ${line.y1} C ${c1x} ${line.y1}, ${c2x} ${line.y2}, ${line.x2} ${line.y2}`
+  }
 
   return createPortal(
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.28 }}
       className={`shot-peek is-open${annotated ? ' is-annotated' : ''}`}
       role="dialog"
       aria-modal="true"
@@ -301,47 +377,45 @@ function ShotPeek({
       onClick={requestClose}
       ref={layoutRef}
     >
-      {annotated && connectors.length > 0 ? (
+      {annotated && connectorsReady && svgSize.width > 0 && connectors.length > 0 ? (
         <svg
-          className="shot-annotate-connector"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 10002 }}
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
+          className="shot-annotate-connector is-ready"
+          width={svgSize.width}
+          height={svgSize.height}
+          viewBox={`0 0 ${svgSize.width} ${svgSize.height}`}
+          preserveAspectRatio="xMidYMid meet"
           aria-hidden="true"
         >
           <defs>
             <marker
-              id="annotate-arrow-head"
-              markerWidth="4"
-              markerHeight="4"
-              refX="3.2"
-              refY="2"
+              id={markerId}
+              markerWidth="8"
+              markerHeight="8"
+              refX="7"
+              refY="4"
               orient="auto"
+              markerUnits="userSpaceOnUse"
             >
-              <path d="M0,0 L4,2 L0,4 Z" fill={shot.accent} />
+              <path d="M0,0 L8,4 L0,8 Z" fill={shot.accent} />
             </marker>
           </defs>
-          {connectors.map((line) => {
-            const curveX = (line.x1 + line.x2) / 2
-            const curveY = (line.y1 + line.y2) / 2 - 4
-            return (
-              <path
-                key={line.id}
-                d={`M ${line.x1} ${line.y1} Q ${curveX} ${curveY}, ${line.x2} ${line.y2}`}
-                fill="none"
-                stroke={shot.accent}
-                strokeWidth="0.25"
-                strokeLinecap="round"
-                markerEnd="url(#annotate-arrow-head)"
-                opacity="0.9"
-              />
-            )
-          })}
+          {connectors.map((line) => (
+            <path
+              key={line.id}
+              d={connectorPath(line)}
+              fill="none"
+              stroke={shot.accent}
+              strokeWidth="2"
+              strokeLinecap="round"
+              markerEnd={`url(#${markerId})`}
+              opacity="0.92"
+            />
+          ))}
         </svg>
       ) : null}
 
       {annotated && groups ? (
-        <div className="shot-annotate-side side-left" onClick={(e) => e.stopPropagation()}>
+        <div className="shot-annotate-side side-left" onClick={(event) => event.stopPropagation()}>
           {groups.left.map((hotspot) => (
             <AnnotateNote
               key={hotspot.id}
@@ -356,7 +430,7 @@ function ShotPeek({
 
       <motion.figure
         layoutId={shot.layoutId}
-        transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+        transition={{ type: 'spring', stiffness: 340, damping: 34 }}
         className={`shot-peek-frame is-open${annotated ? ' is-annotated' : ''}`}
         style={
           {
@@ -366,8 +440,11 @@ function ShotPeek({
           } as CSSProperties
         }
         onClick={(event) => event.stopPropagation()}
+        onLayoutAnimationComplete={() => {
+          window.dispatchEvent(new Event('resize'))
+        }}
       >
-        <div className="shot-peek-media">
+        <div className="shot-peek-media" ref={mediaRef}>
           <div className="shot-peek-media-inner">
             <img
               src={shot.src}
@@ -376,19 +453,19 @@ function ShotPeek({
                 window.dispatchEvent(new Event('resize'))
               }}
             />
-            {annotated && shot.hotspots && (
+            {annotated && shot.hotspots ? (
               <HotspotBoxes
                 hotspots={shot.hotspots}
                 accent={shot.accent}
                 boxRefs={boxRefs}
               />
-            )}
+            ) : null}
           </div>
         </div>
       </motion.figure>
 
       {annotated && groups ? (
-        <div className="shot-annotate-side side-right" onClick={(e) => e.stopPropagation()}>
+        <div className="shot-annotate-side side-right" onClick={(event) => event.stopPropagation()}>
           {groups.right.map((hotspot) => (
             <AnnotateNote
               key={hotspot.id}

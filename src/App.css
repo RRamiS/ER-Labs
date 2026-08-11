@@ -2007,16 +2007,31 @@ h3,
   backdrop-filter: blur(12px) saturate(1.12);
 }
 
+.shot-annotate-connector {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 10002;
+  overflow: visible;
+  opacity: 0;
+}
+
+.shot-annotate-connector.is-ready {
+  opacity: 1;
+  transition: opacity 0.18s ease;
+}
+
 .shot-annotate-side {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 25vw;
-  padding: 2.5rem;
+  width: min(26vw, 320px);
+  padding: 2rem 1.25rem;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 1.5rem;
+  gap: 1rem;
   z-index: 10003;
   pointer-events: none;
 }
@@ -2031,6 +2046,29 @@ h3,
 
 .side-right {
   right: 0;
+}
+
+.shot-annotate-note {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.9rem 1rem;
+  border-radius: 0.85rem;
+  border: 1px solid color-mix(in srgb, #fff 12%, var(--line));
+  background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+  position: relative;
+  z-index: 4;
+  max-width: 100%;
+}
+
+.shot-annotate-note[data-side='left'] {
+  margin-right: 0.25rem;
+}
+
+.shot-annotate-note[data-side='right'] {
+  margin-left: 0.25rem;
 }
 
 .shot-peek-frame {
@@ -2059,52 +2097,12 @@ h3,
 .shot-peek-frame.is-annotated {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  max-height: min(88vh, 820px);
+  overflow: visible;
+  max-height: none;
 }
 
 .shot-peek-frame.is-annotated.is-open {
-  overflow: hidden;
-}
-
-.shot-annotate-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.95rem 1rem 0.75rem;
-  border-bottom: 1px solid var(--line);
-  background: var(--bg-solid);
-  flex: 0 0 auto;
-}
-
-.shot-annotate-kicker {
-  margin: 0 0 0.18rem;
-  font-size: 0.68rem;
-  font-weight: 750;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--accent) 75%, var(--ink-soft));
-}
-
-.shot-annotate-header h3 {
-  margin: 0;
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: var(--ink);
-}
-
-.shot-annotate-body {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  min-height: 0;
-  flex: 1 1 auto;
-  overflow-y: auto;
-  overflow-x: hidden;
-  background: var(--bg-solid);
+  overflow: visible;
 }
 
 .shot-peek-media {
@@ -2118,7 +2116,11 @@ h3,
 
 .shot-peek-media-inner {
   position: relative;
-  width: 100%;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  border-radius: 1.05rem;
+  overflow: visible;
 }
 
 .shot-peek-media img,
@@ -2126,14 +2128,17 @@ h3,
   display: block;
   width: 100%;
   height: auto;
-  min-height: 240px;
+  min-height: 0;
   object-fit: contain;
   object-position: top center;
   background: color-mix(in srgb, var(--ink) 6%, var(--bg-solid));
+  border-radius: 1.05rem;
 }
 
 .shot-peek-frame.is-annotated .shot-peek-media img {
-  min-height: 0;
+  width: auto;
+  max-width: min(100%, 1000px);
+  height: auto;
   max-height: min(72vh, 640px);
   object-fit: contain;
 }
@@ -2158,20 +2163,6 @@ h3,
   gap: 0.8rem;
   padding: 0 1.5rem 2.5rem;
   margin-top: -8rem;
-}
-
-.shot-annotate-note {
-  display: flex;
-  gap: 0.75rem;
-  align-items: flex-start;
-  padding: 1rem 1.1rem;
-  border-radius: 0.85rem;
-  border: 1px solid color-mix(in srgb, #fff 12%, var(--line));
-  background: color-mix(in srgb, var(--bg-elevated) 85%, transparent);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 12px 30px rgba(0,0,0,0.3);
-  position: relative;
-  z-index: 4;
 }
 
 .shot-annotate-note-index {
@@ -2204,16 +2195,6 @@ h3,
   color: var(--ink-soft);
 }
 
-.shot-annotate-connector {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 3;
-  overflow: visible;
-}
-
 .shot-hotspots {
   position: absolute;
   inset: 0;
@@ -2225,33 +2206,65 @@ h3,
   position: absolute;
   margin: 0;
   padding: 0;
-  border: 2px solid color-mix(in srgb, var(--accent) 88%, #fff);
-  border-radius: 0.35rem;
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, #000 18%, transparent),
-    0 8px 22px color-mix(in srgb, #000 18%, transparent);
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 
-.shot-hotspot-box.is-active {
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-  border-color: var(--accent);
+.shot-hotspot-corner {
+  position: absolute;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-color: color-mix(in srgb, var(--accent) 78%, #fff);
+  border-style: solid;
+  opacity: 0.9;
+  filter: drop-shadow(0 1px 2px color-mix(in srgb, #000 28%, transparent));
+}
+
+.shot-hotspot-corner.is-tl {
+  top: 0;
+  left: 0;
+  border-width: 1.5px 0 0 1.5px;
+  border-top-left-radius: 0.2rem;
+}
+
+.shot-hotspot-corner.is-tr {
+  top: 0;
+  right: 0;
+  border-width: 1.5px 1.5px 0 0;
+  border-top-right-radius: 0.2rem;
+}
+
+.shot-hotspot-corner.is-bl {
+  bottom: 0;
+  left: 0;
+  border-width: 0 0 1.5px 1.5px;
+  border-bottom-left-radius: 0.2rem;
+}
+
+.shot-hotspot-corner.is-br {
+  bottom: 0;
+  right: 0;
+  border-width: 0 1.5px 1.5px 0;
+  border-bottom-right-radius: 0.2rem;
 }
 
 .shot-hotspot-index {
   position: absolute;
-  top: -0.55rem;
-  left: -0.55rem;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   display: grid;
   place-items: center;
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 1.2rem;
+  height: 1.2rem;
   border-radius: 999px;
-  background: var(--accent);
+  background: color-mix(in srgb, var(--accent) 88%, #111);
   color: #fff;
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   font-weight: 800;
-  box-shadow: 0 4px 10px color-mix(in srgb, #000 25%, transparent);
+  border: 1.5px solid color-mix(in srgb, #fff 55%, transparent);
+  box-shadow: 0 4px 14px color-mix(in srgb, #000 30%, transparent);
 }
 
 .shot-peek-frame figcaption,
