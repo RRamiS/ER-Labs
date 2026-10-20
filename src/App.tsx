@@ -1,8 +1,10 @@
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent,
   type MutableRefObject,
 } from 'react'
@@ -15,6 +17,8 @@ import {
   type Project,
   type ShotHotspot,
 } from './data/projects'
+import { readSearchQuery, writeSearchQuery } from './search/engine'
+import { SearchOverlay, SearchResults } from './search/SiteSearch'
 import './App.css'
 
 type Theme = 'light' | 'dark'
@@ -575,69 +579,154 @@ function GalleryFigure({
 
 function ProjectCollage({
   project,
+  playing,
   onOpenWalkthrough,
   onOpenShot,
 }: {
   project: Project
+  playing: boolean
   onOpenWalkthrough: () => void
   onOpenShot: (shot: GalleryShot, origin: PeekShot['origin'], layoutId: string) => void
 }) {
+  const slides = project.gallery
+  const count = slides.length
+  const [index, setIndex] = useState(0)
+  const [cleared, setCleared] = useState(false)
+  const stageRef = useRef<HTMLDivElement>(null)
+  const active = slides[index]
+
+  useLayoutEffect(() => {
+    setCleared(false)
+  }, [playing, index])
+
+  useEffect(() => {
+    if (!playing) return
+    const timer = window.setTimeout(() => setCleared(true), 2800)
+    return () => window.clearTimeout(timer)
+  }, [playing, index])
+
+  const go = (delta: number) => {
+    if (count < 2) return
+    setIndex((current) => (current + delta + count) % count)
+  }
+
+  const openActive = () => {
+    if (!active?.src || !stageRef.current) return
+    const rect = stageRef.current.getBoundingClientRect()
+    onOpenShot(
+      active,
+      { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
+      `collage-${project.id}-${index}`,
+    )
+  }
+
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      go(-1)
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault()
+      go(1)
+    }
+  }
+
   return (
     <div className="project-collage-section">
-      <div className="collage-header">
-        <div className="collage-title-line">
-          <h4 className="collage-heading">Módulos</h4>
-          <button
-            type="button"
-            className="collage-diagram-btn"
-            onClick={onOpenWalkthrough}
-            style={{ borderColor: `${project.accent}44`, color: project.accent }}
-          >
-            Walkthrough de módulos
-          </button>
-        </div>
-      </div>
-
-      <div className="project-collage-grid">
-        {project.gallery.slice(0, 4).map((shot, index) => {
-          const tileLayoutId = `collage-${project.id}-${index}`
-          return (
-            <motion.button
-              key={tileLayoutId}
-              type="button"
-              layoutId={tileLayoutId}
-              className={`collage-tile tile-${index}`}
-              onClick={(event) => {
-                const rect = event.currentTarget.getBoundingClientRect()
-                onOpenShot(shot, {
-                  top: rect.top,
-                  left: rect.left,
-                  width: rect.width,
-                  height: rect.height,
-                }, tileLayoutId)
-              }}
-            >
-              {shot.src ? (
-                <img src={shot.src} alt={shot.caption} loading="lazy" />
-              ) : (
-                <div
-                  className="collage-placeholder"
-                  style={{
-                    background: `linear-gradient(135deg, ${project.accent}44, ${project.accent}15)`,
-                  }}
-                />
-              )}
-              <div className="collage-tile-overlay">
-                <span className="collage-tile-tag">{shot.caption}</span>
-                <h5 className="collage-tile-title">{shot.stepTitle || shot.caption}</h5>
-                <span className="collage-tile-hint">
-                  {shot.hotspots?.length ? 'Explorar anotaciones →' : 'Ampliar captura →'}
-                </span>
+      <section
+        className={`module-carousel${cleared ? ' is-clear' : ''}`}
+        aria-roledescription="carrusel"
+        aria-label={`Módulos de ${project.name}`}
+        onKeyDown={onKeyDown}
+      >
+        <div className="module-carousel-stage" ref={stageRef}>
+          {slides.map((shot, slideIndex) => {
+            const selected = slideIndex === index
+            return (
+              <div
+                key={`${project.id}-${slideIndex}`}
+                className={`module-slide${selected ? ' is-active' : ''}`}
+                aria-hidden={!selected}
+                onClick={(event) => {
+                  if (!selected) return
+                  if ((event.target as HTMLElement).closest('button')) return
+                  openActive()
+                }}
+              >
+                {shot.src ? (
+                  <img src={shot.src} alt="" />
+                ) : (
+                  <span
+                    className="module-slide-fallback"
+                    style={{
+                      background: `linear-gradient(135deg, ${project.accent}66, ${project.accent}22)`,
+                    }}
+                  />
+                )}
+                <div className="module-slide-copy">
+                  <span className="module-slide-kicker">{shot.caption}</span>
+                  <strong>{shot.stepTitle || shot.caption}</strong>
+                  <span className="module-slide-text">{shot.description || shot.actionText}</span>
+                  <div className="module-slide-options">
+                    <button
+                      type="button"
+                      className="module-slide-cta"
+                      tabIndex={selected ? 0 : -1}
+                      onClick={openActive}
+                    >
+                      {shot.hotspots?.length ? 'Explorar' : 'Ampliar'}
+                    </button>
+                    <button
+                      type="button"
+                      className="module-slide-cta"
+                      tabIndex={selected ? 0 : -1}
+                      onClick={onOpenWalkthrough}
+                    >
+                      Walkthrough
+                    </button>
+                  </div>
+                </div>
               </div>
-            </motion.button>
-          )
-        })}
-      </div>
+            )
+          })}
+
+          {count > 1 ? (
+            <>
+              <button
+                type="button"
+                className="module-carousel-nav is-prev"
+                aria-label="Anterior"
+                onClick={() => go(-1)}
+              >
+                <span aria-hidden="true">‹</span>
+              </button>
+              <button
+                type="button"
+                className="module-carousel-nav is-next"
+                aria-label="Siguiente"
+                onClick={() => go(1)}
+              >
+                <span aria-hidden="true">›</span>
+              </button>
+            </>
+          ) : null}
+
+          {count > 1 ? (
+            <div className="module-carousel-dots" role="tablist" aria-label="Módulos">
+              {slides.map((shot, slideIndex) => (
+                <button
+                  key={`${project.id}-dot-${slideIndex}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={slideIndex === index}
+                  aria-label={`${slideIndex + 1}. ${shot.stepTitle || shot.caption}`}
+                  className={slideIndex === index ? 'is-active' : undefined}
+                  onClick={() => setIndex(slideIndex)}
+                />
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </section>
     </div>
   )
 }
@@ -757,11 +846,23 @@ function ProjectCard({
   }
 
   const handleToggle = () => {
-    setOpen((prev) => !prev)
+    setOpen((prev) => {
+      const next = !prev
+      if (next) {
+        window.setTimeout(() => {
+          rowRef.current?.querySelector('.module-carousel-stage')?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+          })
+        }, 60)
+      }
+      return next
+    })
   }
 
   return (
     <li
+      id={`proyecto-${project.id}`}
       ref={rowRef}
       className={`project-row${open ? ' is-open' : ''}`}
       style={{ '--accent': project.accent } as CSSProperties}
@@ -796,6 +897,20 @@ function ProjectCard({
             ))}
           </div>
           <p>{project.blurb}</p>
+          <div className="project-case-strip">
+            <div className="case-item">
+              <span className="case-label">Problema</span>
+              <span className="case-val">{project.caseStudy.problem}</span>
+            </div>
+            <div className="case-item">
+              <span className="case-label">Arquitectura</span>
+              <span className="case-val">{project.caseStudy.architecture}</span>
+            </div>
+            <div className="case-item">
+              <span className="case-label">Impacto</span>
+              <span className="case-val">{project.caseStudy.outcome}</span>
+            </div>
+          </div>
           <div className="project-meta">
             <span className="project-hint">
               {open ? 'Ocultar galería' : 'Ver showroom'}
@@ -805,11 +920,15 @@ function ProjectCard({
         </div>
       </button>
 
-      <div className={`project-detail-wrapper${open ? ' is-expanded' : ''}`}>
+      <div
+        className={`project-detail-wrapper${open ? ' is-expanded' : ''}`}
+        inert={open ? undefined : true}
+      >
         <div className="project-detail-inner">
           <div className="project-detail">
             <ProjectCollage
               project={project}
+              playing={open}
               onOpenWalkthrough={() => setModalOpen(true)}
               onOpenShot={(shot, origin, layoutId) => {
                 if (!shot.src) return
@@ -866,11 +985,49 @@ function App() {
   const craftRef = useReveal<HTMLElement>()
   const ctaRef = useReveal<HTMLElement>()
   const pageRef = useRef<HTMLDivElement>(null)
+  const pendingProject = useRef<string | null>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState(() =>
+    typeof window === 'undefined' ? '' : readSearchQuery(),
+  )
+
+  const commitSearch = (next: string) => {
+    setSearchQuery(writeSearchQuery(next))
+  }
+
+  const openProjectFromSearch = (projectId: string) => {
+    pendingProject.current = projectId
+    commitSearch('')
+  }
+
+  const followSearchHash = (hash: string) => {
+    pendingProject.current = null
+    commitSearch('')
+    window.setTimeout(() => {
+      document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 40)
+  }
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     localStorage.setItem('er-labs-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    const onPop = () => setSearchQuery(readSearchQuery())
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  useEffect(() => {
+    if (searchQuery || !pendingProject.current) return
+    const projectId = pendingProject.current
+    pendingProject.current = null
+    document.getElementById(`proyecto-${projectId}`)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    })
+  }, [searchQuery])
 
   useEffect(() => {
     const page = pageRef.current
@@ -889,6 +1046,17 @@ function App() {
     setTheme((current) => (current === 'dark' ? 'light' : 'dark'))
   }
 
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setSearchOpen(true)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   return (
     <div className="page" ref={pageRef}>
       <div className="atmosphere" aria-hidden="true" />
@@ -898,15 +1066,53 @@ function App() {
       <div className="cursor-spot" aria-hidden="true" />
 
       <header className="nav">
-        <a className="nav-brand" href="#top">
+        <a
+          className="nav-brand"
+          href="#top"
+          onClick={(event) => {
+            if (!searchQuery) return
+            event.preventDefault()
+            commitSearch('')
+          }}
+        >
           <span className="nav-mark">ER</span>
           Sistemas
         </a>
         <div className="nav-right">
           <nav className="nav-links" aria-label="Principal">
-            <a href="#proyectos">Proyectos</a>
-            <a href="#equipo">Equipo</a>
+            <a
+              href="#proyectos"
+              onClick={(event) => {
+                if (!searchQuery) return
+                event.preventDefault()
+                followSearchHash('#proyectos')
+              }}
+            >
+              Proyectos
+            </a>
+            <a
+              href="#equipo"
+              onClick={(event) => {
+                if (!searchQuery) return
+                event.preventDefault()
+                followSearchHash('#equipo')
+              }}
+            >
+              Equipo
+            </a>
           </nav>
+          <button
+            type="button"
+            className="nav-search"
+            onClick={() => setSearchOpen(true)}
+            aria-label="Buscar"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
+            </svg>
+            <span>Buscar</span>
+          </button>
           <button
             type="button"
             className="theme-toggle"
@@ -927,7 +1133,22 @@ function App() {
         </div>
       </header>
 
+      <SearchOverlay
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onCommit={commitSearch}
+        onFollowHash={followSearchHash}
+      />
+
       <main id="top">
+        {searchQuery ? (
+          <SearchResults
+            query={searchQuery}
+            onCommit={commitSearch}
+            onOpenProject={openProjectFromSearch}
+          />
+        ) : (
+          <>
         <section className="hero">
           <div className="hero-copy">
             <p className="brand-mark">
@@ -1036,20 +1257,81 @@ function App() {
         <section className="stats reveal" ref={statsRef}>
           <article className="stat-card">
             <strong>{projects.length}</strong>
-            <span>Productos en el lab</span>
+            <span>Productos activos en el lab</span>
           </article>
           <article className="stat-card">
-            <strong>{projects.filter((p) => p.liveUrl).length}</strong>
-            <span>Demos en vivo</span>
+            <strong>100%</strong>
+            <span>Offline‑first & Local‑first</span>
+          </article>
+          <article className="stat-card">
+            <strong>$0/mes</strong>
+            <span>Servidor local en PC propia (FincOS)</span>
           </article>
           <article className="stat-card">
             <strong>2</strong>
-            <span>Builders full-stack</span>
+            <span>Builders full‑stack · Ship constante</span>
           </article>
-          <article className="stat-card">
-            <strong>MVP+</strong>
-            <span>Ship temprano, iterar fuerte</span>
-          </article>
+        </section>
+
+        <section className="workbench reveal">
+          <div className="section-head">
+            <p className="eyebrow">Live Lab Status</p>
+            <h2>En el banco esta semana</h2>
+            <p>
+              Últimas mejoras de arquitectura, modo sin conexión y experiencia
+              minimalista aplicadas en los productos del laboratorio.
+            </p>
+          </div>
+          <div className="workbench-grid">
+            <article className="workbench-card" style={{ '--accent': '#3D8B4F' } as CSSProperties}>
+              <div className="workbench-top">
+                <span className="workbench-tag">FincOS · Prioridad Campo</span>
+                <span className="workbench-pill">Offline + Servidor PC</span>
+              </div>
+              <h3>Operación 100% sin señal y Servidor Local en PC ($0 Cloud)</h3>
+              <p>
+                Caché íntegra en el dispositivo + cola Outbox optimista para
+                ventas, cosechas, cobranzas y bitácora. Al detectar el Wi‑Fi de
+                la finca, sincroniza directo contra el PostgreSQL de la PC local
+                sin pagar servidores externos.
+              </p>
+              <a className="workbench-link" href="#proyecto-fincos">
+                Ver FincOS en el lab →
+              </a>
+            </article>
+
+            <article className="workbench-card" style={{ '--accent': '#1F6BFF' } as CSSProperties}>
+              <div className="workbench-top">
+                <span className="workbench-tag">Vehio · Marketplace AR</span>
+                <span className="workbench-pill">Transparencia 3‑en‑1</span>
+              </div>
+              <h3>Ficha de Confianza Unificada: Puesto en calle, Cuotas y DNRPA</h3>
+              <p>
+                Desglose real con transferencia estimada (~4.5%) e informe 13i,
+                calculadora de cuotas interactiva y checklist mecánico de 8
+                puntos con agendado directo por WhatsApp.
+              </p>
+              <a className="workbench-link" href="#proyecto-vehio">
+                Ver Vehio en el lab →
+              </a>
+            </article>
+
+            <article className="workbench-card" style={{ '--accent': '#8B5E3C' } as CSSProperties}>
+              <div className="workbench-top">
+                <span className="workbench-tag">Mueblería · Showroom v2</span>
+                <span className="workbench-pill">Estudio a Medida</span>
+              </div>
+              <h3>Configurador al centímetro con plano de escala y cotización</h3>
+              <p>
+                Ajuste interactivo de largo, profundidad y ancho de ambiente con
+                cálculo de paso libre lateral, elección de madera maciza
+                (Petiribí, Paraíso, Roble) y presupuesto en vivo.
+              </p>
+              <a className="workbench-link" href="#proyecto-muebleria">
+                Ver Mueblería en el lab →
+              </a>
+            </article>
+          </div>
         </section>
 
         <section
@@ -1160,6 +1442,8 @@ function App() {
             </a>
           </div>
         </section>
+          </>
+        )}
       </main>
 
       <footer className="footer">
@@ -1177,7 +1461,16 @@ function App() {
             >
               Emiliano
             </a>
-            <a href="#proyectos">Proyectos</a>
+            <a
+              href="#proyectos"
+              onClick={(event) => {
+                if (!searchQuery) return
+                event.preventDefault()
+                followSearchHash('#proyectos')
+              }}
+            >
+              Proyectos
+            </a>
           </div>
         </div>
         <p className="footer-meta">© {new Date().getFullYear()}</p>

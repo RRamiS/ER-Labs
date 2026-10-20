@@ -25,6 +25,12 @@ export type GalleryShot = {
   hotspots?: ShotHotspot[]
 }
 
+export type CaseStudySummary = {
+  problem: string
+  architecture: string
+  outcome: string
+}
+
 export type Project = {
   id: string
   name: string
@@ -34,6 +40,7 @@ export type Project = {
   repoUrl: string
   liveUrl?: string
   accent: string
+  caseStudy: CaseStudySummary
   gallery: GalleryShot[]
 }
 
@@ -925,12 +932,17 @@ export const projects: Project[] = withShotHotspots([
     id: 'vehio',
     name: 'Vehio',
     blurb:
-      'Marketplace de autos usados en Argentina. Flujo de publicación, búsqueda y contacto pensado para el mercado local.',
+      'Marketplace de autos usados en Argentina con ficha de transparencia 3‑en‑1: costo real puesto en calle (transferencia DNRPA + 13i), simulador de cuotas e inspección de 8 puntos.',
     status: 'mvp',
-    stack: 'TypeScript',
+    stack: 'TypeScript · React · Supabase',
     repoUrl: 'https://github.com/RRamiS/vehio',
     liveUrl: 'https://vehio.me/',
     accent: '#1F6BFF',
+    caseStudy: {
+      problem: 'Clasificados informales sin fotos, costos ocultos de transferencia y señas inseguras.',
+      architecture: 'Catálogo normalizado AR + Ficha de Transparencia 3‑en‑1 (DNRPA, cuotas e inspección).',
+      outcome: 'Cálculo instantáneo de puesto en calle y coordinación de visita verificada en 1 clic.',
+    },
     gallery: [
       {
         src: '/projects/vehio/01-inicio.png',
@@ -1008,6 +1020,11 @@ export const projects: Project[] = withShotHotspots([
     repoUrl: 'https://github.com/RRamiS/Reflejos_Del_Lago_Vercel',
     liveUrl: 'https://reflejos-del-lago-vercel.vercel.app',
     accent: '#0E8A7A',
+    caseStudy: {
+      problem: 'Dependencia de intermediarios con comisiones altas para reservas de cabañas.',
+      architecture: 'Landing inmersiva en Next.js con recorrido fotográfico, tarifas claras y GPS.',
+      outcome: 'Canal de consulta y reserva directa por WhatsApp sin comisiones de terceros.',
+    },
     gallery: [
       {
         src: '/projects/reflejos/01-portada.png',
@@ -1084,6 +1101,11 @@ export const projects: Project[] = withShotHotspots([
     stack: 'Expo · Tauri · TypeScript',
     repoUrl: 'https://github.com/RRamiS/Containers',
     accent: '#E8A317',
+    caseStudy: {
+      problem: 'Contratos de alquiler, remitos y ubicación de flota dispersos en planillas.',
+      architecture: 'Monorepo multiplataforma para oficina (Tauri) y choferes en calle (Expo).',
+      outcome: 'Trazabilidad GPS de cada unidad, alertas de vencimiento y remito digital.',
+    },
     gallery: [
       {
         src: '/projects/containers/01-alquileres.png',
@@ -1155,11 +1177,16 @@ export const projects: Project[] = withShotHotspots([
     id: 'fincos',
     name: 'FincOS',
     blurb:
-      'Plataforma hortícola mobile-first. Herramientas digitales para gestionar la finca desde el bolsillo.',
+      'Sistema operativo hortícola Offline‑First + Servidor PC Local ($0 cloud). Opera en el cuadro sin señal y sincroniza ventas, cosechas y mediería al volver al Wi‑Fi de la PC.',
     status: 'desarrollo',
-    stack: 'TypeScript · Mobile-first',
+    stack: 'Expo · Next.js · NestJS · Local PC Server',
     repoUrl: 'https://github.com/RRamiS/FincOS',
     accent: '#3D8B4F',
+    caseStudy: {
+      problem: 'Cero señal en los cuadros de cultivo y costos mensuales innecesarios de servidores cloud.',
+      architecture: 'Caché completa + cola Outbox optimista en móvil/web sincronizada contra PostgreSQL en la PC local vía LAN.',
+      outcome: '100% usable sin conexión, liquidación exacta de medieros sobre lo cobrado y $0 gasto en servicios externos.',
+    },
     gallery: [
       {
         src: '/projects/fincos/01-dashboard.png',
@@ -1233,9 +1260,14 @@ export const projects: Project[] = withShotHotspots([
     blurb:
       'Sistema para administrar y consultar listas de precios. MVP funcional en evolución continua.',
     status: 'desarrollo',
-    stack: 'TypeScript',
+    stack: 'TypeScript · Local DB',
     repoUrl: 'https://github.com/EmilianoArias021/Lista-de-precios',
     accent: '#C44D2B',
+    caseStudy: {
+      problem: 'Demoras en mostrador al recalcular listas de proveedores con cambios constantes de IVA y margen.',
+      architecture: 'Motor local instantáneo con actualización masiva por marca y backups JSON/CSV.',
+      outcome: 'Consulta en milisegundos en mostrador sin depender de internet.',
+    },
     gallery: [
       {
         src: '/projects/lista-precios/01-lista.png',
@@ -1307,12 +1339,17 @@ export const projects: Project[] = withShotHotspots([
     id: 'muebleria',
     name: 'Mueblería',
     blurb:
-      'Prototipo web para mueblería. Catálogo y presencia digital listos para iterar sobre feedback real.',
+      'Showroom digital y configurador interactivo a medida. Permite ajustar largo, profundidad y madera maciza viendo la escala en el ambiente y el presupuesto en vivo.',
     status: 'desarrollo',
-    stack: 'HTML · Vercel',
+    stack: 'HTML · JS · Configurador 2D',
     repoUrl: 'https://github.com/RRamiS/Muebleria',
     liveUrl: 'https://muebleria-brown.vercel.app',
     accent: '#8B5E3C',
+    caseStudy: {
+      problem: 'Fricción al cotizar muebles a medida sin saber cómo entran en el ambiente ni cuánto varía el precio.',
+      architecture: 'Catálogo por ambientes + Estudio a Medida interactivo con plano de paso libre y cálculo por madera.',
+      outcome: 'Presupuesto inmediato en pantalla con cuotas y envío directo de ficha técnica a WhatsApp.',
+    },
     gallery: [
       {
         src: '/projects/muebleria/01-portada.png',
